@@ -694,6 +694,14 @@ def resolve_collision(state: PhysicsState, tile_lookup: TileLookup) -> None:
         if floor_result.found and abs(floor_result.distance) <= _GROUND_SNAP_DISTANCE:
             # Snap to surface
             _snap_to_floor(state, floor_result, quadrant)
+            # Two-pass: if snapping changed the active quadrant, re-run the floor
+            # sensor immediately with the new quadrant so the position is fully
+            # corrected this frame instead of one frame later.
+            new_quadrant = get_quadrant(state.angle)
+            if new_quadrant != quadrant:
+                floor_result2 = find_floor(state, tile_lookup)
+                if floor_result2.found and abs(floor_result2.distance) <= _GROUND_SNAP_DISTANCE:
+                    _snap_to_floor(state, floor_result2, new_quadrant)
         else:
             # No floor — detach
             state.on_ground = False

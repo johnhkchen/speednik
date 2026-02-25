@@ -753,3 +753,42 @@ class TestWallSensorAngleGate:
         state = self._state_moving_right()
         result = find_wall_push(state, self._lookup_at_sensor(just_below), RIGHT)
         assert result.found, "angle=207 is last wall-like angle and must block movement"
+
+
+# ---------------------------------------------------------------------------
+# TestTwoPassQuadrantResolve
+# ---------------------------------------------------------------------------
+
+class TestTwoPassQuadrantResolve:
+    """Slope transitions must not cause a one-frame position jump."""
+
+    def test_quadrant_transition_resolved_in_one_frame(self):
+        """When snap changes the active quadrant, position is corrected immediately."""
+        # angle=35 is byte 35, get_quadrant(35) = 1 (right-wall mode, 33–96).
+        # Player starts at quadrant 0 (angle=0).  Floor sensor casts DOWN, finds
+        # the tile (height=8 → surface_y at tile_y*16+8), snaps y.  After snap,
+        # angle becomes 35 → quadrant 1.  Second pass fires: floor sensor casts
+        # RIGHT from (x+h_rad, y±w_rad).  The same tile is returned for any
+        # (tx, ty) so it is found, and x is snapped as well.
+        slope_tile = Tile(height_array=[8] * 16, angle=35, solidity=FULL)
+
+        def tile_lookup(tx, ty):
+            return slope_tile
+
+        # Set up player just above where the down sensor will find the surface.
+        # Floor sensor A at (x - 9, y + 20) = (91, 112). Tile at (5, 7).
+        # height=8 → surface_y = 7*16 + (16-8) = 120.  dist = 120-112 = 8.
+        state = PhysicsState(x=100.0, y=92.0, angle=0, on_ground=True)
+
+        resolve_collision(state, tile_lookup)
+
+        assert state.on_ground, "Player must remain on ground across quadrant transition"
+        assert state.angle == 35, "Player angle must update to new tile angle"
+        # Two-pass: after the q0 y-snap (y=100) and angle→35→q1, a second q1
+        # x-snap must also have fired. Without second pass, x stays at 100.0.
+        # q1 sensor A at (100+20, 100+9)=(120,109) → tile (7,6), surface_x=7*16=112,
+        # dist=112-120=-8 → snap x += -8 → x=92.
+        assert state.x == 92.0, (
+            f"Two-pass snap should correct x to 92.0, got {state.x}. "
+            "Without the fix, x stays at 100.0 and the correction is deferred one frame."
+        )
