@@ -105,6 +105,15 @@ BOSS_HITBOX_H = 32
 BOSS_HIT_INVULN = 30              # frames of boss invulnerability after hit
 BOSS_ARENA_HALF_W = 128           # ±128px from spawn for patrol bounds
 
+# Goal / Game state (§1, §8)
+GOAL_ACTIVATION_RADIUS = 24
+DEATH_DELAY_FRAMES = 120        # 2 seconds at 60fps
+RESULTS_DURATION = 300           # 5 seconds at 60fps
+GAMEOVER_DELAY = 360             # 6 seconds — jingle + pause
+BOSS_ARENA_START_X = 4000       # x threshold for boss music in Stage 3
+BOSS_SPAWN_X = 4800.0           # Boss spawn x for Stage 3
+BOSS_SPAWN_Y = 480.0            # Boss ground level for Stage 3
+
 # Angle system
 ANGLE_STEPS = 256
 

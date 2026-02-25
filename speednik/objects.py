@@ -12,6 +12,7 @@ from enum import Enum
 from speednik.constants import (
     CHECKPOINT_ACTIVATION_RADIUS,
     EXTRA_LIFE_THRESHOLD,
+    GOAL_ACTIVATION_RADIUS,
     LIQUID_RISE_SPEED,
     PIPE_ENTRY_HITBOX_H,
     PIPE_ENTRY_HITBOX_W,
@@ -45,6 +46,10 @@ class CheckpointEvent(Enum):
 class PipeEvent(Enum):
     ENTERED = "entered"
     EXITED = "exited"
+
+
+class GoalEvent(Enum):
+    REACHED = "reached"
 
 
 class LiquidEvent(Enum):
@@ -438,3 +443,23 @@ def update_liquid_zones(
                 events.append(LiquidEvent.DAMAGE)
 
     return events
+
+
+# ---------------------------------------------------------------------------
+# Goal collision
+# ---------------------------------------------------------------------------
+
+def check_goal_collision(
+    player: Player,
+    goal_x: float,
+    goal_y: float,
+) -> GoalEvent | None:
+    """Check if the player has reached the goal post."""
+    if player.state in (PlayerState.DEAD, PlayerState.HURT):
+        return None
+    px, py = player.physics.x, player.physics.y
+    dx = goal_x - px
+    dy = goal_y - py
+    if dx * dx + dy * dy < GOAL_ACTIVATION_RADIUS * GOAL_ACTIVATION_RADIUS:
+        return GoalEvent.REACHED
+    return None

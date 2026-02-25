@@ -1,13 +1,21 @@
-"""speednik/main.py — Entry point with demo mode for T-001-05.
+"""speednik/main.py — Game state machine and entry point.
 
-Builds a hardcoded test level (flat ground + slope + loop), creates a player,
-and runs the game loop with debug visualization and Sonic 2 camera.
+Manages five game states: TITLE, STAGE_SELECT, GAMEPLAY, RESULTS, GAME_OVER.
+Loads real stages from pipeline data. Handles lives, death, respawn, and
+stage progression.
 """
 
 import pyxel
 
 from speednik import renderer
 from speednik.audio import (
+    MUSIC_BOSS,
+    MUSIC_CLEAR,
+    MUSIC_GAMEOVER,
+    MUSIC_HILLSIDE,
+    MUSIC_PIPEWORKS,
+    MUSIC_SKYBRIDGE,
+    MUSIC_TITLE,
     SFX_1UP,
     SFX_BOSS_HIT,
     SFX_CHECKPOINT,
@@ -15,15 +23,25 @@ from speednik.audio import (
     SFX_ENEMY_DESTROY,
     SFX_HURT,
     SFX_LIQUID_RISING,
+    SFX_MENU_CONFIRM,
+    SFX_MENU_SELECT,
     SFX_RING,
     SFX_SPRING,
     SFX_STAGE_CLEAR,
     init_audio,
+    play_music,
     play_sfx,
+    stop_music,
     update_audio,
 )
 from speednik.camera import camera_update, create_camera
 from speednik.constants import (
+    BOSS_ARENA_START_X,
+    BOSS_SPAWN_X,
+    BOSS_SPAWN_Y,
+    DEATH_DELAY_FRAMES,
+    GAMEOVER_DELAY,
+    RESULTS_DURATION,
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     SPRING_HITBOX_H,
@@ -38,76 +56,38 @@ from speednik.enemies import (
 )
 from speednik.objects import (
     CheckpointEvent,
+    GoalEvent,
     LiquidEvent,
     PipeEvent,
     Ring,
     RingEvent,
     SpringEvent,
     check_checkpoint_collision,
+    check_goal_collision,
     check_ring_collection,
     check_spring_collision,
     load_checkpoints,
     load_liquid_zones,
     load_pipes,
+    load_rings,
     load_springs,
     update_liquid_zones,
     update_pipe_travel,
     update_spring_cooldowns,
 )
 from speednik.physics import InputState
-from speednik.player import PlayerState, create_player, get_player_rect, player_update
-from speednik.terrain import FULL, TILE_SIZE, Tile, TileLookup
-
+from speednik.player import Player, PlayerState, create_player, get_player_rect, player_update
+from speednik.stages import hillside, pipeworks, skybridge
 
 # ---------------------------------------------------------------------------
-# Demo level
+# Stage configuration
 # ---------------------------------------------------------------------------
 
-def _build_demo_level() -> tuple[dict[tuple[int, int], Tile], TileLookup]:
-    """Build a hardcoded demo level: flat ground + slope + loop approach."""
-    tiles: dict[tuple[int, int], Tile] = {}
-
-    # Flat ground: tiles 0–29 at y=12 (pixel y=192..208)
-    for tx in range(30):
-        tiles[(tx, 12)] = Tile(
-            height_array=[TILE_SIZE] * TILE_SIZE,
-            angle=0,
-            solidity=FULL,
-        )
-
-    # Gentle upslope: tiles 10–13 at y=11 (above main ground)
-    # Height arrays create a gradual ramp from right to left
-    slope_angles = [
-        round(15 * 256 / 360) % 256,  # ~15 degrees
-        round(25 * 256 / 360) % 256,  # ~25 degrees
-        round(25 * 256 / 360) % 256,
-        round(15 * 256 / 360) % 256,
-    ]
-    slope_heights = [
-        [0, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
-        [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 16],
-        [16, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2],
-        [13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0, 0, 0],
-    ]
-    for i, tx in enumerate(range(10, 14)):
-        tiles[(tx, 11)] = Tile(
-            height_array=slope_heights[i],
-            angle=slope_angles[i],
-            solidity=FULL,
-        )
-
-    # Extended flat ground under the slope area
-    for tx in range(30, 50):
-        tiles[(tx, 12)] = Tile(
-            height_array=[TILE_SIZE] * TILE_SIZE,
-            angle=0,
-            solidity=FULL,
-        )
-
-    def lookup(tx: int, ty: int) -> Tile | None:
-        return tiles.get((tx, ty))
-
-    return tiles, lookup
+_STAGE_MODULES = {1: hillside, 2: pipeworks, 3: skybridge}
+_STAGE_NAMES = {1: "HILLSIDE RUSH", 2: "PIPE WORKS", 3: "SKYBRIDGE GAUNTLET"}
+_STAGE_MUSIC = {1: MUSIC_HILLSIDE, 2: MUSIC_PIPEWORKS, 3: MUSIC_SKYBRIDGE}
+_STAGE_PALETTE = {1: "hillside", 2: "pipeworks", 3: "skybridge"}
+_NUM_STAGES = 3
 
 
 # ---------------------------------------------------------------------------
@@ -136,50 +116,207 @@ class App:
         renderer.init_palette()
         init_audio()
 
-        self.tiles, self.tile_lookup = _build_demo_level()
+        # State machine
+        self.state = "title"
+        self.lives = 3
+        self.unlocked_stages = 1
+        self.selected_stage = 1
 
-        # Compute level dimensions from tile data
-        max_tx = max(tx for tx, _ in self.tiles) + 1
-        max_ty = max(ty for _, ty in self.tiles) + 1
-        level_w = max_tx * TILE_SIZE
-        level_h = max_ty * TILE_SIZE
+        # Gameplay fields (populated by _load_stage)
+        self.player: Player | None = None
+        self.camera = None
+        self.tiles_dict: dict | None = None
+        self.tile_lookup = None
+        self.rings: list = []
+        self.springs: list = []
+        self.checkpoints: list = []
+        self.pipes: list = []
+        self.liquid_zones: list = []
+        self.enemies: list = []
+        self.goal_x = 0.0
+        self.goal_y = 0.0
+        self.active_stage = 0
+        self.timer_frames = 0
+        self.death_timer = 0
+        self.results_timer = 0
+        self.gameover_timer = 0
+        self.boss_music_started = False
+        self.boss_defeated = False
 
-        # Player starts on flat ground at tile x=4
-        start_x = 4 * TILE_SIZE + TILE_SIZE // 2  # center of tile 4
-        start_y = 12 * TILE_SIZE - STANDING_HEIGHT_RADIUS  # feet at top of tile row 12
-        self.player = create_player(float(start_x), float(start_y))
-
-        # Demo rings: a line above flat ground for testing collection
-        self.rings: list[Ring] = []
-        for i in range(20):
-            rx = float(6 * TILE_SIZE + i * 24)
-            ry = float(12 * TILE_SIZE - 24)  # 24px above ground surface
-            self.rings.append(Ring(x=rx, y=ry))
-
-        # Game objects (empty in demo mode — populated when loading real stages)
-        self.springs = load_springs([])
-        self.checkpoints = load_checkpoints([])
-        self.pipes = load_pipes([])
-        self.liquid_zones = load_liquid_zones([])
-
-        # Demo enemies: a crab patrolling on flat ground
-        demo_enemy_entities = [
-            {"type": "enemy_crab", "x": 14 * TILE_SIZE, "y": 12 * TILE_SIZE - 7},
-            {"type": "enemy_buzzer", "x": 20 * TILE_SIZE, "y": 12 * TILE_SIZE - 40},
-        ]
-        self.enemies = load_enemies(demo_enemy_entities)
-
-        # Sonic 2 camera system
-        self.camera = create_camera(level_w, level_h, float(start_x), float(start_y))
-
+        play_music(MUSIC_TITLE)
         pyxel.run(self.update, self.draw)
+
+    # ------------------------------------------------------------------
+    # Dispatch
+    # ------------------------------------------------------------------
 
     def update(self):
         if pyxel.btnp(pyxel.KEY_Q):
             pyxel.quit()
 
+        if self.state == "title":
+            self._update_title()
+        elif self.state == "stage_select":
+            self._update_stage_select()
+        elif self.state == "gameplay":
+            self._update_gameplay()
+        elif self.state == "results":
+            self._update_results()
+        elif self.state == "game_over":
+            self._update_game_over()
+
+        update_audio()
+
+    def draw(self):
+        pyxel.cls(0)
+
+        if self.state == "title":
+            self._draw_title()
+        elif self.state == "stage_select":
+            self._draw_stage_select()
+        elif self.state == "gameplay":
+            self._draw_gameplay()
+        elif self.state == "results":
+            self._draw_results()
+        elif self.state == "game_over":
+            self._draw_game_over()
+
+    # ------------------------------------------------------------------
+    # TITLE
+    # ------------------------------------------------------------------
+
+    def _update_title(self):
+        if (pyxel.btnp(pyxel.KEY_Z)
+                or pyxel.btnp(pyxel.KEY_RETURN)
+                or pyxel.btnp(pyxel.KEY_SPACE)):
+            play_sfx(SFX_MENU_CONFIRM)
+            self.state = "stage_select"
+
+    def _draw_title(self):
+        # Title
+        pyxel.text(SCREEN_WIDTH // 2 - 28, 60, "S P E E D N I K", 7)
+
+        # Subtitle
+        pyxel.text(SCREEN_WIDTH // 2 - 32, 80, "A Sonic 2 Homage", 11)
+
+        # Flashing prompt
+        if pyxel.frame_count % 60 < 40:
+            pyxel.text(SCREEN_WIDTH // 2 - 24, 140, "PRESS  START", 11)
+
+    # ------------------------------------------------------------------
+    # STAGE SELECT
+    # ------------------------------------------------------------------
+
+    def _update_stage_select(self):
+        if pyxel.btnp(pyxel.KEY_UP):
+            if self.selected_stage > 1:
+                self.selected_stage -= 1
+                play_sfx(SFX_MENU_SELECT)
+        elif pyxel.btnp(pyxel.KEY_DOWN):
+            if self.selected_stage < self.unlocked_stages:
+                self.selected_stage += 1
+                play_sfx(SFX_MENU_SELECT)
+
+        if pyxel.btnp(pyxel.KEY_Z) or pyxel.btnp(pyxel.KEY_RETURN):
+            play_sfx(SFX_MENU_CONFIRM)
+            self._load_stage(self.selected_stage)
+            self.state = "gameplay"
+
+    def _draw_stage_select(self):
+        pyxel.text(SCREEN_WIDTH // 2 - 28, 30, "SELECT  STAGE", 11)
+
+        for i in range(1, _NUM_STAGES + 1):
+            y = 60 + (i - 1) * 24
+            name = _STAGE_NAMES[i]
+            if i <= self.unlocked_stages:
+                color = 11 if i == self.selected_stage else 7
+                prefix = "> " if i == self.selected_stage else "  "
+            else:
+                color = 12
+                name = "???"
+                prefix = "  "
+            pyxel.text(60, y, f"{prefix}{i}. {name}", color)
+
+    # ------------------------------------------------------------------
+    # Stage loading
+    # ------------------------------------------------------------------
+
+    def _load_stage(self, stage_num: int):
+        module = _STAGE_MODULES[stage_num]
+        stage = module.load()
+
+        self.active_stage = stage_num
+        self.tiles_dict = stage.tiles_dict
+        self.tile_lookup = stage.tile_lookup
+
+        # Player
+        sx, sy = stage.player_start
+        self.player = create_player(float(sx), float(sy))
+        self.player.lives = self.lives
+
+        # Camera
+        self.camera = create_camera(
+            stage.level_width, stage.level_height, float(sx), float(sy)
+        )
+
+        # Objects
+        self.rings = load_rings(stage.entities)
+        self.springs = load_springs(stage.entities)
+        self.checkpoints = load_checkpoints(stage.entities)
+        self.pipes = load_pipes(stage.entities)
+        self.liquid_zones = load_liquid_zones(stage.entities)
+        self.enemies = load_enemies(stage.entities)
+
+        # Goal
+        self.goal_x = 0.0
+        self.goal_y = 0.0
+        for e in stage.entities:
+            if e.get("type") == "goal":
+                self.goal_x = float(e["x"])
+                self.goal_y = float(e["y"])
+                break
+
+        # Stage 3: inject boss
+        if stage_num == 3:
+            boss_entities = [
+                {"type": "enemy_egg_piston", "x": BOSS_SPAWN_X, "y": BOSS_SPAWN_Y}
+            ]
+            self.enemies.extend(load_enemies(boss_entities))
+
+        # Reset state
+        self.timer_frames = 0
+        self.death_timer = 0
+        self.boss_music_started = False
+        self.boss_defeated = False
+        renderer.clear_particles()
+        renderer.set_stage_palette(_STAGE_PALETTE[stage_num])
+        stop_music()
+        play_music(_STAGE_MUSIC[stage_num])
+
+    # ------------------------------------------------------------------
+    # GAMEPLAY
+    # ------------------------------------------------------------------
+
+    def _update_gameplay(self):
+        # --- Death handling ---
+        if self.player.state == PlayerState.DEAD:
+            self.death_timer += 1
+            if self.death_timer >= DEATH_DELAY_FRAMES:
+                if self.lives > 1:
+                    self.lives -= 1
+                    self._respawn_player()
+                else:
+                    self.lives = 0
+                    stop_music()
+                    play_music(MUSIC_GAMEOVER)
+                    self.gameover_timer = GAMEOVER_DELAY
+                    self.state = "game_over"
+            return
+
+        # --- Normal gameplay frame ---
         inp = _read_input()
         player_update(self.player, inp, self.tile_lookup)
+        self.timer_frames += 1
 
         # Ring collection
         ring_events = check_ring_collection(self.player, self.rings)
@@ -188,6 +325,7 @@ class App:
                 play_sfx(SFX_RING)
             elif event == RingEvent.EXTRA_LIFE:
                 play_sfx(SFX_1UP)
+                self.lives += 1
 
         # Spring collision
         spring_events = check_spring_collision(self.player, self.springs)
@@ -202,12 +340,7 @@ class App:
                 play_sfx(SFX_CHECKPOINT)
 
         # Pipe travel
-        pipe_events = update_pipe_travel(self.player, self.pipes)
-        for event in pipe_events:
-            if event == PipeEvent.ENTERED:
-                pass  # Could add pipe entry SFX
-            elif event == PipeEvent.EXITED:
-                pass  # Could add pipe exit SFX
+        update_pipe_travel(self.player, self.pipes)
 
         # Liquid zones
         liquid_events = update_liquid_zones(self.player, self.liquid_zones)
@@ -221,7 +354,6 @@ class App:
         for event in enemy_events:
             if event == EnemyEvent.DESTROYED:
                 play_sfx(SFX_ENEMY_DESTROY)
-                # Spawn particles at destroyed enemy position
                 for enemy in self.enemies:
                     if not enemy.alive:
                         renderer.spawn_destroy_particles(enemy.x, enemy.y)
@@ -229,32 +361,51 @@ class App:
                 play_sfx(SFX_ENEMY_BOUNCE)
             elif event == EnemyEvent.PLAYER_DAMAGED:
                 play_sfx(SFX_HURT)
+                if self.player.state == PlayerState.DEAD:
+                    self.death_timer = 0
             elif event == EnemyEvent.SHIELD_BREAK:
                 play_sfx(SFX_BOSS_HIT)
             elif event == EnemyEvent.BOSS_HIT:
                 play_sfx(SFX_BOSS_HIT)
             elif event == EnemyEvent.BOSS_DEFEATED:
                 play_sfx(SFX_STAGE_CLEAR)
+                self.boss_defeated = True
 
         # Spring cooldowns
         update_spring_cooldowns(self.springs)
 
-        update_audio()
+        # Boss music trigger (Stage 3)
+        if (self.active_stage == 3
+                and not self.boss_music_started
+                and not self.boss_defeated
+                and self.player.physics.x >= BOSS_ARENA_START_X):
+            self.boss_music_started = True
+            stop_music()
+            play_music(MUSIC_BOSS)
 
-        # Update camera after player (needs final position)
+        # Goal collision
+        goal = check_goal_collision(self.player, self.goal_x, self.goal_y)
+        if goal == GoalEvent.REACHED:
+            stop_music()
+            play_music(MUSIC_CLEAR)
+            self.results_timer = RESULTS_DURATION
+            self.state = "results"
+            return
+
+        # Sync lives between player and app
+        self.lives = self.player.lives
+
+        # Camera
         camera_update(self.camera, self.player, inp)
 
-    def draw(self):
-        pyxel.cls(0)  # Sky background (palette slot 0)
-
-        # World-space drawing
+    def _draw_gameplay(self):
         cam_x = int(self.camera.x)
         cam_y = int(self.camera.y)
         pyxel.camera(cam_x, cam_y)
 
-        renderer.draw_terrain(self.tiles, cam_x, cam_y)
+        renderer.draw_terrain(self.tiles_dict, cam_x, cam_y)
 
-        # World rings
+        # Rings
         for ring in self.rings:
             if not ring.collected:
                 renderer._draw_ring(int(ring.x), int(ring.y), pyxel.frame_count)
@@ -263,28 +414,27 @@ class App:
         for spring in self.springs:
             sx = int(spring.x - SPRING_HITBOX_W // 2)
             sy = int(spring.y - SPRING_HITBOX_H // 2)
-            color = 8  # Red (palette slot 8)
+            color = 8
             if spring.cooldown > 0:
-                # Compressed visual
                 pyxel.rect(sx, sy + SPRING_HITBOX_H // 2, SPRING_HITBOX_W, SPRING_HITBOX_H // 2, color)
             else:
                 pyxel.rect(sx, sy, SPRING_HITBOX_W, SPRING_HITBOX_H, color)
 
         # Checkpoints
         for cp in self.checkpoints:
-            color = 10 if cp.activated else 7  # Yellow if active, white if not
+            color = 10 if cp.activated else 7
             cx = int(cp.x)
             cy = int(cp.y)
-            pyxel.line(cx, cy, cx, cy - 24, color)  # Post
-            pyxel.circ(cx, cy - 26, 3, color)  # Top
+            pyxel.line(cx, cy, cx, cy - 24, color)
+            pyxel.circ(cx, cy - 26, 3, color)
 
-        # Pipes (filled rectangles with directional indicators)
+        # Pipes
         for pipe in self.pipes:
             px1 = int(min(pipe.x, pipe.exit_x))
             py1 = int(min(pipe.y, pipe.exit_y)) - 12
             px2 = int(max(pipe.x, pipe.exit_x))
             py2 = int(max(pipe.y, pipe.exit_y)) + 12
-            pyxel.rectb(px1, py1, px2 - px1, py2 - py1, 5)  # Teal outline
+            pyxel.rectb(px1, py1, px2 - px1, py2 - py1, 5)
 
         # Liquid zones
         for zone in self.liquid_zones:
@@ -293,10 +443,13 @@ class App:
                 lx2 = int(zone.exit_x)
                 ly = int(zone.current_y)
                 lh = int(zone.floor_y - zone.current_y)
-                # Semi-transparent effect via alternating lines
                 for row in range(lh):
                     if (ly + row + pyxel.frame_count // 4) % 2 == 0:
-                        pyxel.line(lx1, ly + row, lx2, ly + row, 10)  # Blue
+                        pyxel.line(lx1, ly + row, lx2, ly + row, 10)
+
+        # Goal post
+        if self.goal_x > 0:
+            renderer._draw_goal(int(self.goal_x), int(self.goal_y), pyxel.frame_count)
 
         # Boss targeting indicator
         for enemy in self.enemies:
@@ -322,9 +475,89 @@ class App:
         )
         renderer.draw_particles(pyxel.frame_count)
 
-        # Screen-space HUD
+        # HUD (screen space)
         pyxel.camera()
-        renderer.draw_hud(self.player, pyxel.frame_count, pyxel.frame_count)
+        renderer.draw_hud(self.player, self.timer_frames, pyxel.frame_count)
+
+    # ------------------------------------------------------------------
+    # Respawn
+    # ------------------------------------------------------------------
+
+    def _respawn_player(self):
+        rx = self.player.respawn_x
+        ry = self.player.respawn_y
+        rr = self.player.respawn_rings
+
+        self.player = create_player(rx, ry)
+        self.player.lives = self.lives
+        self.player.rings = rr
+        self.player.respawn_x = rx
+        self.player.respawn_y = ry
+        self.player.respawn_rings = rr
+
+        self.death_timer = 0
+
+        # Reset camera to respawn position
+        self.camera = create_camera(
+            self.camera.level_width, self.camera.level_height, rx, ry
+        )
+
+    # ------------------------------------------------------------------
+    # RESULTS
+    # ------------------------------------------------------------------
+
+    def _update_results(self):
+        self.results_timer -= 1
+        if self.results_timer <= 0:
+            # Unlock next stage
+            if self.active_stage < _NUM_STAGES:
+                self.unlocked_stages = max(
+                    self.unlocked_stages, self.active_stage + 1
+                )
+            self.state = "stage_select"
+            stop_music()
+            play_music(MUSIC_TITLE)
+
+    def _draw_results(self):
+        name = _STAGE_NAMES.get(self.active_stage, "STAGE")
+        pyxel.text(SCREEN_WIDTH // 2 - 30, 40, f"{name}", 7)
+        pyxel.text(SCREEN_WIDTH // 2 - 28, 55, "S T A G E  C L E A R", 11)
+
+        # Time
+        total_seconds = self.timer_frames // 60
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        pyxel.text(80, 90, f"TIME:   {minutes}:{seconds:02d}", 11)
+
+        # Rings
+        rings = self.player.rings if self.player else 0
+        pyxel.text(80, 106, f"RINGS:  {rings}", 7)
+
+        # Score (time bonus + ring bonus)
+        time_bonus = max(0, 600 - total_seconds) * 10
+        ring_bonus = rings * 100
+        pyxel.text(80, 122, f"TIME BONUS:  {time_bonus}", 11)
+        pyxel.text(80, 138, f"RING BONUS:  {ring_bonus}", 11)
+        pyxel.text(80, 158, f"TOTAL: {time_bonus + ring_bonus}", 7)
+
+    # ------------------------------------------------------------------
+    # GAME OVER
+    # ------------------------------------------------------------------
+
+    def _update_game_over(self):
+        self.gameover_timer -= 1
+        if self.gameover_timer <= 0:
+            self.lives = 3
+            self.state = "title"
+            stop_music()
+            play_music(MUSIC_TITLE)
+
+    def _draw_game_over(self):
+        pyxel.text(SCREEN_WIDTH // 2 - 24, SCREEN_HEIGHT // 2 - 8, "GAME  OVER", 8)
+
+        if self.gameover_timer < GAMEOVER_DELAY - 120:
+            if pyxel.frame_count % 60 < 40:
+                pyxel.text(SCREEN_WIDTH // 2 - 28, SCREEN_HEIGHT // 2 + 16, "PRESS  START", 11)
 
 
 if __name__ == "__main__":

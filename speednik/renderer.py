@@ -529,6 +529,11 @@ def spawn_destroy_particles(x: float, y: float) -> None:
         ))
 
 
+def clear_particles() -> None:
+    """Remove all active particles. Call between stage loads."""
+    _particles.clear()
+
+
 def draw_particles(frame_count: int) -> None:
     """Update and draw all active particles."""
     alive = []
