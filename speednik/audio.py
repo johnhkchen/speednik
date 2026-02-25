@@ -215,144 +215,50 @@ def _define_sfx() -> None:
 # ===========================================================================
 
 def _define_track_title() -> None:
-    """Track 0: Title/Menu — 92 BPM, key D#. Grand opening feel."""
-
-    # 32 notes per pattern (~8 bars at 4 steps/beat)
-    # Melody from analysis: r r a#2 r d#3 d#2 d#3 d#2 r g#3 e3 f#2 r r c#3 c#3
-    #                       r d#2 d#2 g#2 g#3 r r g3 c#3 r c#3 f2 d#2 e2 r r
-    melody = (
-        "r r a#2 r d#3 d#2 d#3 d#2 "
-        "r g#3 e3 f#2 r r c#3 c#3 "
-        "r d#2 d#2 g#2 g#3 r r g3 "
-        "c#3 r c#3 f2 d#2 e2 r r"
-    )
-    # Bass: root-fifth pattern in D# (d#/a#), 32 notes
-    bass = (
-        "d#2 a#2 d#2 a#2 d#2 a#2 d#2 a#2 "
-        "g#2 d#2 g#2 d#2 g#2 d#2 g#2 d#2 "
-        "a#1 f2 a#1 f2 a#1 f2 a#1 f2 "
-        "c#2 g#2 c#2 g#2 c#2 g#2 c#2 g#2"
-    )
-    # Percussion: kick-snare alternation, 32 notes
-    perc = (
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r"
-    )
+    # Title — 92 BPM, D# major — triumphant grand opening
+    melody = "d#3 g#3 a#3 d#4 c4 a#3 g#3 f3 g#3 a#3 g3 f3 d#3 r d#3 r"
+    bass   = "d#2 a#2 d#2 a#2 g#2 d#2 g#2 d#2 f2 c2 f2 c2 g#2 d#2 g#2 d#2"
+    perc   = "c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3"
     n = len(melody.split())
-    pyxel.sounds[16].set(melody, "p" * n, "5" * n, "n" * n, 10)
-    pyxel.sounds[17].set(bass,   "t" * n, "4" * n, "n" * n, 10)
-    pyxel.sounds[18].set(perc,   "n" * n, ("60" * 16), "f" * n, 10)
-
+    pyxel.sounds[16].set(melody, "p" * n, "6" * n,        "n" * n, 10)
+    pyxel.sounds[17].set(bass,   "t" * n, "4" * n,        "n" * n, 10)
+    pyxel.sounds[18].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 10)
     pyxel.musics[MUSIC_TITLE].set([16], [17], [18])
 
 
 def _define_track_hillside() -> None:
-    """Track 1: Hillside Rush — 99 BPM, key C#. Energetic platform feel."""
-
-    # 32 notes per pattern
-    # Melody from analysis: b2 c2 r d#2 c#3 c#2 c#2 c#2
-    #                       c#2 r g#2 d#2 r c#2 r c#2
-    #                       c#2 c#2 r d#3 g#2 d#3 c#3 c3
-    #                       f3 f#2 c#3 c#3 d#3 d#3 a#2 c3
-    melody = (
-        "b2 c2 r d#2 c#3 c#2 c#2 c#2 "
-        "c#2 r g#2 d#2 r c#2 r c#2 "
-        "c#2 c#2 r d#3 g#2 d#3 c#3 c3 "
-        "f3 f#2 c#3 c#3 d#3 d#3 a#2 c3"
-    )
-    # Bass: C# root-fifth driving pattern, 32 notes
-    bass = (
-        "c#2 g#2 c#2 g#2 c#2 g#2 c#2 g#2 "
-        "f#2 c#2 f#2 c#2 f#2 c#2 f#2 c#2 "
-        "a#1 f2 a#1 f2 a#1 f2 a#1 f2 "
-        "d#2 a#2 d#2 a#2 d#2 a#2 d#2 a#2"
-    )
-    # Percussion: kick-snare, 32 notes
-    perc = (
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r"
-    )
+    # Hillside — 99 BPM, C# major — bright, upbeat, Emerald Hill feel
+    melody = "c#3 d#3 f#3 g#3 f#3 d#3 c#3 r c#3 g#3 a#3 c4 a#3 g#3 f#3 d#3"
+    bass   = "c#2 g#2 c#2 g#2 f#2 c#2 f#2 c#2 a#2 f2 a#2 f2 g#2 d#2 g#2 d#2"
+    perc   = "c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3"
     n = len(melody.split())
-    pyxel.sounds[19].set(melody, "p" * n, "5" * n, "n" * n, 9)
-    pyxel.sounds[20].set(bass,   "t" * n, "4" * n, "n" * n, 9)
-    pyxel.sounds[21].set(perc,   "n" * n, ("60" * 16), "f" * n, 9)
-
+    pyxel.sounds[19].set(melody, "p" * n, "6" * n,        "n" * n, 9)
+    pyxel.sounds[20].set(bass,   "t" * n, "4" * n,        "n" * n, 9)
+    pyxel.sounds[21].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 9)
     pyxel.musics[MUSIC_HILLSIDE].set([19], [20], [21])
 
 
 def _define_track_pipeworks() -> None:
-    """Track 2: Pipe Works — 103 BPM, key F. Industrial groove with driving rests."""
-
-    # 32 notes per pattern
-    # Melody from analysis: f2 r f2 r r r r r
-    #                       f2 f2 f2 c#2 c#2 c#2 r r
-    #                       c2 f2 f2 r r c2 f2 g2
-    #                       f#2 f2 c2 f2 f#2 r f2 r
-    melody = (
-        "f2 r f2 r r r r r "
-        "f2 f2 f2 c#2 c#2 c#2 r r "
-        "c2 f2 f2 r r c2 f2 g2 "
-        "f#2 f2 c2 f2 f#2 r f2 r"
-    )
-    # Bass: driving F root pattern with rests matching melody character, 32 notes
-    bass = (
-        "f1 c2 f1 c2 f1 c2 f1 c2 "
-        "f1 c2 f1 c2 f1 c2 f1 c2 "
-        "c1 g1 c1 g1 c1 g1 c1 g1 "
-        "f1 c2 f1 c2 f1 c2 f1 c2"
-    )
-    # Percussion: mechanical kick-snare, 32 notes
-    perc = (
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r"
-    )
+    # Pipeworks — 103 BPM, F minor — dark, industrial, Chemical Plant feel
+    melody = "f3 r f3 g#3 a#3 r a#3 c4 a#3 r g#3 f3 d#3 r f3 r"
+    bass   = "f2 c3 f2 c3 d#2 a#2 d#2 a#2 c3 g2 c3 g2 a#2 f2 a#2 f2"
+    perc   = "c3 c3 f3 c3 c3 c3 f3 c3 c3 c3 f3 c3 c3 c3 f3 c3"
     n = len(melody.split())
-    pyxel.sounds[22].set(melody, "s" * n, "5" * n, "n" * n, 9)
-    pyxel.sounds[23].set(bass,   "t" * n, "4" * n, "n" * n, 9)
-    pyxel.sounds[24].set(perc,   "n" * n, ("60" * 16), "f" * n, 9)
-
+    pyxel.sounds[22].set(melody, "s" * n, "6" * n,        "n" * n, 9)
+    pyxel.sounds[23].set(bass,   "t" * n, "4" * n,        "n" * n, 9)
+    pyxel.sounds[24].set(perc,   "n" * n, "7575" * (n // 4), "n" * n, 9)
     pyxel.musics[MUSIC_PIPEWORKS].set([22], [23], [24])
 
 
 def _define_track_skybridge() -> None:
-    """Track 3: Skybridge Gauntlet — 162 BPM, key D#. Intense and fast."""
-
-    # 32 notes per pattern
-    # Melody from analysis: d#3 r d#2 d#2 d#2 d#2 d#2 d#2
-    #                       d#2 r r r r r r c#2
-    #                       r c#2 r d#2 d#2 d#2 d#2 c#2
-    #                       c#2 c#2 d2 c#2 d#2 c2 c2 r
-    melody = (
-        "d#3 r d#2 d#2 d#2 d#2 d#2 d#2 "
-        "d#2 r r r r r r c#2 "
-        "r c#2 r d#2 d#2 d#2 d#2 c#2 "
-        "c#2 c#2 d2 c#2 d#2 c2 c2 r"
-    )
-    # Bass: D# root-fifth driving pattern, 32 notes
-    bass = (
-        "d#2 a#2 d#2 a#2 d#2 a#2 d#2 a#2 "
-        "d#2 a#2 d#2 a#2 d#2 a#2 d#2 a#2 "
-        "c#2 g#2 c#2 g#2 c#2 g#2 c#2 g#2 "
-        "d#2 a#2 d#2 a#2 d#2 a#2 d#2 a#2"
-    )
-    # Percussion: rapid driving beat, 32 notes
-    perc = (
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r "
-        "c3 r c3 r c3 r c3 r"
-    )
+    # Skybridge — 161 BPM, D# major — fast, intense, Sky Chase feel
+    melody = "d#3 f3 g#3 a#3 g#3 f3 d#3 f3 g3 a#3 g3 f3 d#3 f3 g#3 a#3"
+    bass   = "d#2 d#2 g#2 g#2 a#2 a#2 f2 f2 d#2 d#2 g2 g2 g#2 g#2 a#2 a#2"
+    perc   = "c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3"
     n = len(melody.split())
-    pyxel.sounds[25].set(melody, "p" * n, "6" * n, "n" * n, 6)
-    pyxel.sounds[26].set(bass,   "t" * n, "5" * n, "n" * n, 6)
-    pyxel.sounds[27].set(perc,   "n" * n, ("70" * 16), "f" * n, 6)
-
+    pyxel.sounds[25].set(melody, "p" * n, "6" * n,        "n" * n, 6)
+    pyxel.sounds[26].set(bass,   "t" * n, "4" * n,        "n" * n, 6)
+    pyxel.sounds[27].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 6)
     pyxel.musics[MUSIC_SKYBRIDGE].set([25], [26], [27])
 
 
