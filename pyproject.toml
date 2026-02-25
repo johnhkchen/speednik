@@ -1,0 +1,10 @@
+[project]
+name = "speednik"
+version = "0.1.0"
+description = "A Sonic 2 homage built with Pyxel"
+requires-python = ">=3.10"
+dependencies = ["pyxel"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
