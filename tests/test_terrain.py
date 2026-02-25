@@ -725,3 +725,31 @@ class TestWallSensorAngleGate:
         assert not result.found, (
             "Shallow-angled tile on the left should also be ignored"
         )
+
+    def test_exact_boundary_angle_48_is_rejected(self):
+        """Exact boundary value angle=48 must be floor-range and rejected."""
+        boundary = Tile(height_array=[16] * 16, angle=48, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(boundary), RIGHT)
+        assert not result.found, "angle=48 is floor-range boundary and must be ignored"
+
+    def test_one_above_boundary_angle_49_is_accepted(self):
+        """angle=49 is the first wall-like angle and must not be ignored."""
+        just_steep = Tile(height_array=[16] * 16, angle=49, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(just_steep), RIGHT)
+        assert result.found, "angle=49 is first wall-like angle and must block movement"
+
+    def test_exact_upper_boundary_angle_208_is_rejected(self):
+        """Upper boundary angle=208 must also be floor-range and rejected."""
+        upper_boundary = Tile(height_array=[16] * 16, angle=208, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(upper_boundary), RIGHT)
+        assert not result.found, "angle=208 is upper floor-range boundary and must be ignored"
+
+    def test_one_below_upper_boundary_angle_207_is_accepted(self):
+        """angle=207 is the last wall-like angle and must not be ignored."""
+        just_below = Tile(height_array=[16] * 16, angle=207, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(just_below), RIGHT)
+        assert result.found, "angle=207 is last wall-like angle and must block movement"
