@@ -6,15 +6,23 @@ and runs the game loop with debug visualization and Sonic 2 camera.
 
 import pyxel
 
-from speednik.audio import init_audio, update_audio
+from speednik import renderer
+from speednik.audio import (
+    SFX_1UP,
+    SFX_RING,
+    init_audio,
+    play_sfx,
+    update_audio,
+)
 from speednik.camera import camera_update, create_camera
 from speednik.constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     STANDING_HEIGHT_RADIUS,
 )
+from speednik.objects import Ring, RingEvent, check_ring_collection
 from speednik.physics import InputState
-from speednik.player import PlayerState, create_player, get_player_rect, player_update
+from speednik.player import create_player, player_update
 from speednik.terrain import FULL, TILE_SIZE, Tile, TileLookup
 
 
@@ -92,6 +100,7 @@ def _read_input() -> InputState:
 class App:
     def __init__(self):
         pyxel.init(SCREEN_WIDTH, SCREEN_HEIGHT, title="Speednik", fps=60)
+        renderer.init_palette()
         init_audio()
 
         self.tiles, self.tile_lookup = _build_demo_level()
@@ -107,6 +116,13 @@ class App:
         start_y = 12 * TILE_SIZE - STANDING_HEIGHT_RADIUS  # feet at top of tile row 12
         self.player = create_player(float(start_x), float(start_y))
 
+        # Demo rings: a line above flat ground for testing collection
+        self.rings: list[Ring] = []
+        for i in range(20):
+            rx = float(6 * TILE_SIZE + i * 24)
+            ry = float(12 * TILE_SIZE - 24)  # 24px above ground surface
+            self.rings.append(Ring(x=rx, y=ry))
+
         # Sonic 2 camera system
         self.camera = create_camera(level_w, level_h, float(start_x), float(start_y))
 
@@ -118,60 +134,44 @@ class App:
 
         inp = _read_input()
         player_update(self.player, inp, self.tile_lookup)
+
+        # Ring collection
+        events = check_ring_collection(self.player, self.rings)
+        for event in events:
+            if event == RingEvent.COLLECTED:
+                play_sfx(SFX_RING)
+            elif event == RingEvent.EXTRA_LIFE:
+                play_sfx(SFX_1UP)
+
         update_audio()
 
         # Update camera after player (needs final position)
         camera_update(self.camera, self.player, inp)
 
     def draw(self):
-        pyxel.cls(12)  # Light blue sky
+        pyxel.cls(0)  # Sky background (palette slot 0)
 
-        # Set viewport offset for world drawing
-        pyxel.camera(int(self.camera.x), int(self.camera.y))
-
-        # Draw tiles (in world coordinates)
+        # World-space drawing
         cam_x = int(self.camera.x)
         cam_y = int(self.camera.y)
-        for (tx, ty), tile in self.tiles.items():
-            world_x = tx * TILE_SIZE
-            world_y = ty * TILE_SIZE
-            # Cull tiles outside viewport
-            if world_x + TILE_SIZE < cam_x or world_x > cam_x + SCREEN_WIDTH:
-                continue
-            if world_y + TILE_SIZE < cam_y or world_y > cam_y + SCREEN_HEIGHT:
-                continue
-            for col in range(TILE_SIZE):
-                h = tile.height_array[col]
-                if h > 0:
-                    x = world_x + col
-                    y_top = world_y + (TILE_SIZE - h)
-                    pyxel.line(x, y_top, x, world_y + TILE_SIZE - 1, 3)  # Green
+        pyxel.camera(cam_x, cam_y)
 
-        # Draw player as colored rectangle (world coordinates)
-        px, py, pw, ph = get_player_rect(self.player)
-        color = 8 if self.player.state == PlayerState.HURT else 4
-        if self.player.invulnerability_timer > 0 and pyxel.frame_count % 4 < 2:
-            color = 0
-        pyxel.rect(int(px), int(py), pw, ph, color)
+        renderer.draw_terrain(self.tiles, cam_x, cam_y)
 
-        # Draw scattered rings (world coordinates)
-        for ring in self.player.scattered_rings:
-            pyxel.circ(int(ring.x), int(ring.y), 2, 10)
+        # World rings
+        for ring in self.rings:
+            if not ring.collected:
+                renderer._draw_ring(int(ring.x), int(ring.y), pyxel.frame_count)
 
-        # Reset camera for HUD (screen-relative)
+        renderer.draw_player(self.player, pyxel.frame_count)
+        renderer.draw_scattered_rings(
+            self.player.scattered_rings, pyxel.frame_count
+        )
+        renderer.draw_particles(pyxel.frame_count)
+
+        # Screen-space HUD
         pyxel.camera()
-
-        # Debug HUD
-        p = self.player.physics
-        pyxel.text(4, 4, f"State: {self.player.state.value}", 7)
-        pyxel.text(4, 12, f"GndSpd: {p.ground_speed:.2f}", 7)
-        pyxel.text(4, 20, f"Pos: ({p.x:.0f}, {p.y:.0f})", 7)
-        pyxel.text(4, 28, f"Rings: {self.player.rings}", 7)
-        pyxel.text(4, 36, f"Angle: {p.angle}", 7)
-        pyxel.text(4, 44, f"OnGnd: {p.on_ground}", 7)
-
-        # Controls help
-        pyxel.text(4, SCREEN_HEIGHT - 10, "Arrows+Z:jump  Up/Down:look  Q:quit", 7)
+        renderer.draw_hud(self.player, pyxel.frame_count, pyxel.frame_count)
 
 
 if __name__ == "__main__":
