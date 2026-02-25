@@ -11,10 +11,12 @@ from dataclasses import dataclass
 from typing import Callable, Optional
 
 from speednik.constants import (
+    ANGLE_STEPS,
     ROLLING_HEIGHT_RADIUS,
     ROLLING_WIDTH_RADIUS,
     STANDING_HEIGHT_RADIUS,
     STANDING_WIDTH_RADIUS,
+    WALL_ANGLE_THRESHOLD,
     WALL_SENSOR_EXTENT,
 )
 from speednik.physics import PhysicsState, byte_angle_to_rad, calculate_landing_speed
@@ -656,7 +658,16 @@ def find_wall_push(
         sensor_x = state.x
         sensor_y = state.y + (WALL_SENSOR_EXTENT if wall_direction == DOWN else -WALL_SENSOR_EXTENT)
 
-    return _sensor_cast(sensor_x, sensor_y, cast_dir, tile_lookup, _no_top_only_filter)
+    result = _sensor_cast(sensor_x, sensor_y, cast_dir, tile_lookup, _no_top_only_filter)
+
+    # Angle gate: ignore hits on floor-range tiles (loop entry ramps, gentle slopes).
+    # Only tiles whose angle is genuinely wall-like (steeper than ~67°) should block.
+    if result.found:
+        a = result.tile_angle
+        if a <= WALL_ANGLE_THRESHOLD or a >= ANGLE_STEPS - WALL_ANGLE_THRESHOLD:
+            return SensorResult(found=False, distance=0.0, tile_angle=0)
+
+    return result
 
 
 # ---------------------------------------------------------------------------

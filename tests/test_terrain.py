@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from speednik.constants import WALL_SENSOR_EXTENT, STANDING_HEIGHT_RADIUS
 from speednik.physics import PhysicsState, calculate_landing_speed
 from speednik.terrain import (
     DOWN,
@@ -455,17 +456,18 @@ class TestCeilingSensors:
 class TestWallSensors:
     def test_wall_right_detected(self):
         """Wall sensor F detects wall to the right when moving right."""
-        tiles = {(2, 0): flat_tile()}
+        tiles = {(2, 0): flat_tile(angle=64)}
         lookup = make_tile_lookup(tiles)
         # Player at x=20, wall at tile (2, 0) = x range [32, 48)
         # F sensor at x = 20 + 10 = 30, casting right
+        # angle=64 is wall-like (> WALL_ANGLE_THRESHOLD=48), so the gate passes it through
         state = PhysicsState(x=20.0, y=8.0, on_ground=True, x_vel=2.0)
         result = find_wall_push(state, lookup, RIGHT)
         assert result.found is True
 
     def test_wall_disabled_moving_away(self):
         """Wall sensor disabled when moving away from wall."""
-        tiles = {(2, 0): flat_tile()}
+        tiles = {(2, 0): flat_tile(angle=64)}
         lookup = make_tile_lookup(tiles)
         state = PhysicsState(x=20.0, y=8.0, on_ground=True, x_vel=-2.0)
         # Moving left, checking right wall → disabled
@@ -474,21 +476,22 @@ class TestWallSensors:
 
     def test_wall_left_detected(self):
         """Wall sensor E detects wall to the left when moving left."""
-        tiles = {(0, 0): flat_tile()}
+        tiles = {(0, 0): flat_tile(angle=192)}
         lookup = make_tile_lookup(tiles)
         # Player at x=20, E sensor at x = 20 - 10 = 10
+        # angle=192 is wall-like (left-wall range, > WALL_ANGLE_THRESHOLD from both ends)
         state = PhysicsState(x=20.0, y=8.0, on_ground=True, x_vel=-2.0)
         result = find_wall_push(state, lookup, LEFT)
         assert result.found is True
 
     def test_rolling_narrows_detection(self):
         """Rolling state uses narrower width_radius but wall sensor extent is same."""
-        tiles = {(2, 0): flat_tile()}
+        tiles = {(2, 0): flat_tile(angle=64)}
         lookup = make_tile_lookup(tiles)
         state = PhysicsState(x=20.0, y=8.0, on_ground=True, is_rolling=True, x_vel=2.0)
         result = find_wall_push(state, lookup, RIGHT)
         # Wall sensor extent is WALL_SENSOR_EXTENT (10), independent of width_radius
-        # Sensor at x = 20 + 10 = 30
+        # Sensor at x = 20 + 10 = 30; angle=64 passes the wall angle gate
         assert result.found is True
 
 
@@ -563,11 +566,13 @@ class TestResolveCollision:
     def test_wall_collision_pushes_out(self):
         """Wall collision pushes player away from wall."""
         # Ground tile and wall tile
+        # Wall tiles must have a wall-like angle (> WALL_ANGLE_THRESHOLD=48) so the
+        # angle gate in find_wall_push() does not discard them.
         tiles = {
             (0, 2): flat_tile(),
             (1, 2): flat_tile(),
-            (2, 0): flat_tile(),  # wall
-            (2, 1): flat_tile(),  # wall
+            (2, 0): flat_tile(angle=64),  # wall — steep angle passes gate
+            (2, 1): flat_tile(angle=64),  # wall — steep angle passes gate
         }
         lookup = make_tile_lookup(tiles)
         # Player very close to wall, moving right
@@ -665,3 +670,58 @@ class TestLanding:
         assert state.on_ground is True
         # Flat angle (0°): ground_speed = x_vel = 5.0
         assert state.ground_speed == 5.0
+
+
+# ---------------------------------------------------------------------------
+# TestWallSensorAngleGate
+# ---------------------------------------------------------------------------
+
+class TestWallSensorAngleGate:
+    """Wall sensor must not block movement onto shallow-angled floor tiles."""
+
+    def _state_moving_right(self):
+        """Player on flat ground, moving right at speed 5."""
+        return PhysicsState(x=100.0, y=96.0, x_vel=5.0, on_ground=True, angle=0)
+
+    def _lookup_at_sensor(self, tile):
+        """Return a tile lookup that places `tile` exactly at the right wall sensor."""
+        # Sensor is at x = 100 + WALL_SENSOR_EXTENT = 110, y = 96
+        # tile_x = 110 // 16 = 6,  tile_y = 96 // 16 = 6
+        def lookup(tx, ty):
+            if tx == 6 and ty == 6:
+                return tile
+            return None
+        return lookup
+
+    def test_shallow_angle_tile_does_not_block(self):
+        """Tile with byte angle < WALL_ANGLE_THRESHOLD must not block horizontal movement."""
+        shallow = Tile(height_array=[16] * 16, angle=20, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(shallow), RIGHT)
+        assert not result.found, (
+            "Shallow-angled tile (loop entry) should be ignored by wall sensor"
+        )
+
+    def test_steep_angle_tile_does_block(self):
+        """Tile with byte angle >= WALL_ANGLE_THRESHOLD must still block movement."""
+        steep = Tile(height_array=[16] * 16, angle=64, solidity=FULL)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(steep), RIGHT)
+        assert result.found and result.distance < 0, (
+            "Steep-angled tile (genuine wall) must block horizontal movement"
+        )
+
+    def test_left_wall_shallow_angle_does_not_block(self):
+        """Same gate applies to the left wall sensor."""
+        shallow = Tile(height_array=[16] * 16, angle=236, solidity=FULL)
+        # angle=236: 236*360/256 ≈ 332°, mirror of 28° — floor range on left side
+        state = PhysicsState(x=100.0, y=96.0, x_vel=-5.0, on_ground=True, angle=0)
+        # Left sensor at x = 100 - 10 = 90, tile_x = 90//16 = 5, tile_y = 6
+        def lookup(tx, ty):
+            if tx == 5 and ty == 6:
+                return shallow
+            return None
+        result = find_wall_push(state, lookup, LEFT)
+        assert not result.found, (
+            "Shallow-angled tile on the left should also be ignored"
+        )
