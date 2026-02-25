@@ -45,5 +45,12 @@ SLIP_DURATION = 30
 # 46° in byte angle: 46 * 256 / 360 ≈ 32.7 → 33
 SLIP_ANGLE_THRESHOLD = 33
 
+# Player damage (§8)
+INVULNERABILITY_DURATION = 120  # 2 seconds at 60fps
+MAX_SCATTER_RINGS = 32
+SCATTER_RING_LIFETIME = 180  # 3 seconds at 60fps
+HURT_KNOCKBACK_X = 2.0
+HURT_KNOCKBACK_Y = -4.0
+
 # Angle system
 ANGLE_STEPS = 256
