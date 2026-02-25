@@ -73,20 +73,26 @@ class TestGoalCollision:
 
 class TestStageDataExtension:
     def test_hillside_stagedata_has_tiles_dict(self):
-        from speednik.stages.hillside import StageData
+        from speednik.level import StageData
         import dataclasses
 
         fields = {f.name for f in dataclasses.fields(StageData)}
         assert "tiles_dict" in fields
 
     def test_stagedata_field_order(self):
-        from speednik.stages.hillside import StageData
+        from speednik.level import StageData
         import dataclasses
 
         field_names = [f.name for f in dataclasses.fields(StageData)]
         # tiles_dict should come after tile_lookup and before entities
         assert field_names.index("tiles_dict") > field_names.index("tile_lookup")
         assert field_names.index("tiles_dict") < field_names.index("entities")
+
+    def test_stagedata_importable_from_hillside(self):
+        """Backwards compatibility: StageData still importable from hillside."""
+        from speednik.stages.hillside import StageData as HillsideStageData
+        from speednik.level import StageData as LevelStageData
+        assert HillsideStageData is LevelStageData
 
 
 # ---------------------------------------------------------------------------

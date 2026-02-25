@@ -75,15 +75,15 @@ from speednik.objects import (
     update_pipe_travel,
     update_spring_cooldowns,
 )
+from speednik.level import load_stage
 from speednik.physics import InputState
 from speednik.player import Player, PlayerState, create_player, get_player_rect, player_update
-from speednik.stages import hillside, pipeworks, skybridge
 
 # ---------------------------------------------------------------------------
 # Stage configuration
 # ---------------------------------------------------------------------------
 
-_STAGE_MODULES = {1: hillside, 2: pipeworks, 3: skybridge}
+_STAGE_LOADER_NAMES = {1: "hillside", 2: "pipeworks", 3: "skybridge"}
 _STAGE_NAMES = {1: "HILLSIDE RUSH", 2: "PIPE WORKS", 3: "SKYBRIDGE GAUNTLET"}
 _STAGE_MUSIC = {1: MUSIC_HILLSIDE, 2: MUSIC_PIPEWORKS, 3: MUSIC_SKYBRIDGE}
 _STAGE_PALETTE = {1: "hillside", 2: "pipeworks", 3: "skybridge"}
@@ -242,8 +242,8 @@ class App:
     # ------------------------------------------------------------------
 
     def _load_stage(self, stage_num: int):
-        module = _STAGE_MODULES[stage_num]
-        stage = module.load()
+        stage_name = _STAGE_LOADER_NAMES[stage_num]
+        stage = load_stage(stage_name)
 
         self.active_stage = stage_num
         self.tiles_dict = stage.tiles_dict
