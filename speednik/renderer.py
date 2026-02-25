@@ -61,6 +61,17 @@ STAGE_PALETTES: dict[str, dict[int, int]] = {
         14: 0xE0E0E0,  # Near-white
         15: 0xFFFFFF,  # White
     },
+    "devpark": {
+        0: 0x000000,   # Black background
+        1: 0x003300,   # Dark green (terrain fill)
+        2: 0x00AA00,   # Mid green (surface line)
+        3: 0x00FF00,   # Bright green (surface highlight)
+        4: 0x00CC00,   # Player body (green)
+        11: 0x00FF00,  # UI text (bright green)
+        13: 0x004400,  # Dark accent
+        14: 0x006600,  # Mid accent
+        15: 0x008800,  # Light accent
+    },
 }
 
 
@@ -125,6 +136,36 @@ def _draw_tile(wx: int, wy: int, tile) -> None:
         if prev_top >= 0:
             pyxel.line(x - 1, prev_top, x, y_top, 2)
         prev_top = y_top
+
+
+def draw_level_bounds(
+    level_width: int,
+    level_height: int,
+    camera_x: int,
+    camera_y: int,
+) -> None:
+    """Draw level boundary lines in world space (red).
+
+    Renders visible portions of the four boundary edges so developers can see
+    where the level ends. Uses color slot 8 (red).
+    """
+    vx0 = camera_x
+    vy0 = camera_y
+    vx1 = camera_x + SCREEN_WIDTH
+    vy1 = camera_y + SCREEN_HEIGHT
+
+    # Left edge (x=0)
+    if vx0 <= 0 <= vx1:
+        pyxel.line(0, max(vy0, 0), 0, min(vy1, level_height), 8)
+    # Right edge (x=level_width)
+    if vx0 <= level_width <= vx1:
+        pyxel.line(level_width, max(vy0, 0), level_width, min(vy1, level_height), 8)
+    # Top edge (y=0)
+    if vy0 <= 0 <= vy1:
+        pyxel.line(max(vx0, 0), 0, min(vx1, level_width), 0, 8)
+    # Bottom edge (y=level_height)
+    if vy0 <= level_height <= vy1:
+        pyxel.line(max(vx0, 0), level_height, min(vx1, level_width), level_height, 8)
 
 
 # ---------------------------------------------------------------------------
@@ -568,3 +609,13 @@ def draw_hud(player, timer_frames: int, frame_count: int) -> None:
 
     # Lives
     pyxel.text(200, 4, f"x{player.lives}", 11)
+
+
+def draw_debug_hud(player, frame_counter: int) -> None:
+    """Draw debug overlay in top-right. Call after draw_hud in screen space."""
+    p = player.physics
+    q = p.angle // 64
+    gnd = "Y" if p.on_ground else "N"
+    pyxel.text(136, 14, f"F:{frame_counter}  X:{p.x:.1f}  Y:{p.y:.1f}", 11)
+    pyxel.text(136, 22, f"GS:{p.ground_speed:.2f}  A:{p.angle}  Q:{q}", 11)
+    pyxel.text(136, 30, f"STATE:{player.state.value}  GND:{gnd}", 11)

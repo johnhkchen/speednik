@@ -8,6 +8,7 @@ stage progression.
 import pyxel
 
 from speednik import renderer
+from speednik.debug import DEBUG
 from speednik.audio import (
     MUSIC_BOSS,
     MUSIC_CLEAR,
@@ -88,6 +89,7 @@ _STAGE_NAMES = {1: "HILLSIDE RUSH", 2: "PIPE WORKS", 3: "SKYBRIDGE GAUNTLET"}
 _STAGE_MUSIC = {1: MUSIC_HILLSIDE, 2: MUSIC_PIPEWORKS, 3: MUSIC_SKYBRIDGE}
 _STAGE_PALETTE = {1: "hillside", 2: "pipeworks", 3: "skybridge"}
 _NUM_STAGES = 3
+_DEV_PARK_STAGE = 0
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +144,7 @@ class App:
         self.gameover_timer = 0
         self.boss_music_started = False
         self.boss_defeated = False
+        self.dev_park_bots: list | None = None
 
         play_music(MUSIC_TITLE)
         pyxel.run(self.update, self.draw)
@@ -164,6 +167,8 @@ class App:
             self._update_results()
         elif self.state == "game_over":
             self._update_game_over()
+        elif self.state == "dev_park":
+            self._update_dev_park()
 
         update_audio()
 
@@ -180,6 +185,8 @@ class App:
             self._draw_results()
         elif self.state == "game_over":
             self._draw_game_over()
+        elif self.state == "dev_park":
+            self._draw_dev_park()
 
     # ------------------------------------------------------------------
     # TITLE
@@ -209,18 +216,28 @@ class App:
 
     def _update_stage_select(self):
         if pyxel.btnp(pyxel.KEY_UP):
-            if self.selected_stage > 1:
+            if self.selected_stage == _DEV_PARK_STAGE:
+                self.selected_stage = self.unlocked_stages
+                play_sfx(SFX_MENU_SELECT)
+            elif self.selected_stage > 1:
                 self.selected_stage -= 1
                 play_sfx(SFX_MENU_SELECT)
         elif pyxel.btnp(pyxel.KEY_DOWN):
             if self.selected_stage < self.unlocked_stages:
                 self.selected_stage += 1
                 play_sfx(SFX_MENU_SELECT)
+            elif self.selected_stage == self.unlocked_stages and DEBUG:
+                self.selected_stage = _DEV_PARK_STAGE
+                play_sfx(SFX_MENU_SELECT)
 
         if pyxel.btnp(pyxel.KEY_Z) or pyxel.btnp(pyxel.KEY_RETURN):
             play_sfx(SFX_MENU_CONFIRM)
-            self._load_stage(self.selected_stage)
-            self.state = "gameplay"
+            if self.selected_stage == _DEV_PARK_STAGE:
+                self._init_dev_park()
+                self.state = "dev_park"
+            else:
+                self._load_stage(self.selected_stage)
+                self.state = "gameplay"
 
     def _draw_stage_select(self):
         pyxel.text(SCREEN_WIDTH // 2 - 28, 30, "SELECT  STAGE", 11)
@@ -236,6 +253,32 @@ class App:
                 name = "???"
                 prefix = "  "
             pyxel.text(60, y, f"{prefix}{i}. {name}", color)
+
+        if DEBUG:
+            y = 60 + _NUM_STAGES * 24
+            selected = self.selected_stage == _DEV_PARK_STAGE
+            color = 11 if selected else 7
+            prefix = "> " if selected else "  "
+            pyxel.text(60, y, f"{prefix}D. DEV PARK", color)
+
+    # ------------------------------------------------------------------
+    # DEV PARK
+    # ------------------------------------------------------------------
+
+    def _init_dev_park(self):
+        from speednik import devpark
+        devpark.init()
+
+    def _update_dev_park(self):
+        from speednik import devpark
+        result = devpark.update()
+        if result == "exit":
+            self.selected_stage = 1
+            self.state = "stage_select"
+
+    def _draw_dev_park(self):
+        from speednik import devpark
+        devpark.draw()
 
     # ------------------------------------------------------------------
     # Stage loading
@@ -478,6 +521,8 @@ class App:
         # HUD (screen space)
         pyxel.camera()
         renderer.draw_hud(self.player, self.timer_frames, pyxel.frame_count)
+        if DEBUG:
+            renderer.draw_debug_hud(self.player, self.timer_frames)
 
     # ------------------------------------------------------------------
     # Respawn

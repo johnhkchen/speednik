@@ -12,6 +12,7 @@ from speednik.terrain import (
     MAX_SENSOR_RANGE,
     NOT_SOLID,
     RIGHT,
+    SURFACE_LOOP,
     TILE_SIZE,
     TOP_ONLY,
     UP,
@@ -753,6 +754,24 @@ class TestWallSensorAngleGate:
         state = self._state_moving_right()
         result = find_wall_push(state, self._lookup_at_sensor(just_below), RIGHT)
         assert result.found, "angle=207 is last wall-like angle and must block movement"
+
+    def test_loop_tile_at_wall_angle_not_blocked(self):
+        """Loop tile (tile_type=SURFACE_LOOP) at wall-range angle must not block."""
+        loop_tile = Tile(height_array=[16] * 16, angle=64, solidity=FULL, tile_type=SURFACE_LOOP)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(loop_tile), RIGHT)
+        assert not result.found, (
+            "Loop tile at wall-range angle should be exempt from wall push"
+        )
+
+    def test_non_loop_tile_at_wall_angle_blocked(self):
+        """Non-loop tile at the same wall-range angle must still block."""
+        normal_tile = Tile(height_array=[16] * 16, angle=64, solidity=FULL, tile_type=1)
+        state = self._state_moving_right()
+        result = find_wall_push(state, self._lookup_at_sensor(normal_tile), RIGHT)
+        assert result.found and result.distance < 0, (
+            "Non-loop tile at wall-range angle must block horizontal movement"
+        )
 
 
 # ---------------------------------------------------------------------------

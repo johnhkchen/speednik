@@ -724,7 +724,7 @@ class Rasterizer:
 
             # Height = distance from sample point to tile bottom
             tile_bottom_y = (ty + 1) * TILE_SIZE
-            height = max(0, min(16, round(tile_bottom_y - sy)))
+            height = max(0, min(16, math.ceil(tile_bottom_y - sy)))
 
             tile = self.grid.get_tile(tx, ty)
             if tile is None:
@@ -746,6 +746,15 @@ class Rasterizer:
         """Rasterize a loop (circle/ellipse) terrain shape."""
         assert shape.center is not None
         cx, cy = shape.center.x, shape.center.y
+
+        # Compute loop radius from the first segment point
+        p0 = shape.segments[0].points[0]
+        r = math.hypot(p0.x - cx, p0.y - cy)
+        r_ramp = r  # ramp radius matches loop radius
+
+        # Generate entry/exit ramps BEFORE the loop circle so that any
+        # overlapping tiles at tangent points are overwritten by loop tiles.
+        self._rasterize_ramps(cx, cy, r, r_ramp)
 
         for seg in shape.segments:
             if seg.kind == "line":
@@ -776,7 +785,7 @@ class Rasterizer:
                         continue
 
                     tile_bottom_y = (ty + 1) * TILE_SIZE
-                    height = max(0, min(16, round(tile_bottom_y - sy)))
+                    height = max(0, min(16, math.ceil(tile_bottom_y - sy)))
 
                     tile = self.grid.get_tile(tx, ty)
                     if tile is None:
@@ -794,6 +803,138 @@ class Rasterizer:
                     tile.is_loop_upper = tile.is_loop_upper or (sy < cy)
                     tile.surface_type = SURFACE_LOOP
                     self.shape_source[(tx, ty)] = self._current_shape_idx
+
+    def _rasterize_ramps(
+        self, cx: float, cy: float, r: float, r_ramp: float
+    ) -> None:
+        """Generate quarter-circle entry/exit ramp tiles for a loop.
+
+        Entry ramp: arc from ground level up to the loop's left tangent point.
+        Exit ramp: arc from the loop's right tangent point down to ground level.
+        Ramp tiles are SURFACE_SOLID (not SURFACE_LOOP) with analytically
+        computed height arrays and tangent angles.
+        """
+        ground_y = cy + r  # bottom of loop circle = ground level
+
+        # --- Helper: compute surface y from arc equation ---
+        def _arc_surface_y(px: float, arc_cx: float) -> float | None:
+            """Return surface y for pixel x on a quarter-circle arc.
+
+            Arc center is at (arc_cx, cy). Surface is the bottom half of
+            the circle: surface_y = cy + sqrt(r_ramp² - dx²).
+
+            Entry ramp: center at (cx - r - r_ramp, cy), dx ranges 0..r_ramp
+              → surface goes from ground_y (flat) up to cy (tangent point)
+            Exit ramp: center at (cx + r + r_ramp, cy), dx ranges -r_ramp..0
+              → surface goes from cy (tangent point) down to ground_y (flat)
+            """
+            dx = px - arc_cx
+            val = r_ramp * r_ramp - dx * dx
+            if val < 0:
+                return None
+            return cy + math.sqrt(val)
+
+        # --- Helper: compute angle between two surface points ---
+        def _angle_from_neighbors(
+            x: float, arc_cx: float
+        ) -> int:
+            """Compute byte angle from arc tangent at pixel x."""
+            y0 = _arc_surface_y(x, arc_cx)
+            y1 = _arc_surface_y(x + 1, arc_cx)
+            if y0 is None or y1 is None:
+                return 0
+            return _compute_segment_angle(Point(x, y0), Point(x + 1, y1))
+
+        # --- Helper: place a ramp pixel into the tile grid ---
+        def _place_ramp_pixel(
+            px: float, surface_y: float, angle: int
+        ) -> None:
+            tx = int(px) // TILE_SIZE
+            ty = int(surface_y) // TILE_SIZE
+            col = int(px) % TILE_SIZE
+            if col < 0:
+                col += TILE_SIZE
+                tx -= 1
+            if tx < 0 or tx >= self.cols or ty < 0 or ty >= self.rows:
+                return
+
+            tile_bottom_y = (ty + 1) * TILE_SIZE
+            height = max(0, min(16, math.ceil(tile_bottom_y - surface_y)))
+
+            tile = self.grid.get_tile(tx, ty)
+            if tile is None:
+                tile = TileData(
+                    surface_type=SURFACE_SOLID,
+                    height_array=[0] * 16,
+                    angle=angle,
+                )
+                self.grid.set_tile(tx, ty, tile)
+
+            col = max(0, min(15, col))
+            tile.height_array[col] = max(tile.height_array[col], height)
+            tile.angle = angle
+            tile.surface_type = SURFACE_SOLID
+            self.shape_source[(tx, ty)] = self._current_shape_idx
+
+        # --- Entry ramp (left side) ---
+        # Arc center at (cx - r - r_ramp, cy): bottom-right quarter sweeps
+        # from ground_y (flat, at x = cx-r-r_ramp) to cy (vertical, at x = cx-r).
+        entry_arc_cx = cx - r - r_ramp
+        entry_x_start = int(cx - r - r_ramp)
+        entry_x_end = int(cx - r)
+
+        for px in range(entry_x_start, entry_x_end):
+            sy = _arc_surface_y(float(px), entry_arc_cx)
+            if sy is None:
+                continue
+            # Clamp surface to ground level (shouldn't exceed, but safety)
+            sy = min(sy, ground_y)
+            angle = _angle_from_neighbors(float(px), entry_arc_cx)
+            _place_ramp_pixel(float(px), sy, angle)
+
+        # --- Exit ramp (right side) ---
+        # Arc center at (cx + r + r_ramp, cy): bottom-left quarter sweeps
+        # from cy (vertical, at x = cx+r) to ground_y (flat, at x = cx+r+r_ramp).
+        exit_arc_cx = cx + r + r_ramp
+        exit_x_start = int(cx + r) + 1
+        exit_x_end = int(cx + r + r_ramp) + 1
+
+        for px in range(exit_x_start, exit_x_end):
+            sy = _arc_surface_y(float(px), exit_arc_cx)
+            if sy is None:
+                continue
+            sy = min(sy, ground_y)
+            angle = _angle_from_neighbors(float(px), exit_arc_cx)
+            _place_ramp_pixel(float(px), sy, angle)
+
+        # --- Fill below ramp surface tiles ---
+        ramp_tx_ranges = set()
+        for px in range(entry_x_start, entry_x_end):
+            ramp_tx_ranges.add(int(px) // TILE_SIZE)
+        for px in range(exit_x_start, exit_x_end):
+            ramp_tx_ranges.add(int(px) // TILE_SIZE)
+
+        for tx in ramp_tx_ranges:
+            # Find topmost ramp tile in this column
+            top_ty = None
+            for ty in range(self.rows):
+                tile = self.grid.get_tile(tx, ty)
+                if tile is not None and tile.surface_type == SURFACE_SOLID:
+                    top_ty = ty
+                    break
+            if top_ty is None:
+                continue
+            # Fill below with fully solid tiles
+            for ty in range(top_ty + 1, self.rows):
+                existing = self.grid.get_tile(tx, ty)
+                if existing is None:
+                    self.grid.set_tile(tx, ty, TileData(
+                        surface_type=SURFACE_SOLID,
+                        height_array=[16] * 16,
+                        angle=0,
+                    ))
+                elif existing.surface_type != SURFACE_SOLID:
+                    break  # Hit a different surface type; stop filling
 
     def _fill_interior(self, shape: TerrainShape) -> None:
         """Fill tiles below surface tiles as fully solid.

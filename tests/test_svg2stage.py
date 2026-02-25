@@ -28,6 +28,7 @@ from svg2stage import (
     SURFACE_SLOPE,
     SURFACE_SOLID,
     SURFACE_TOP_ONLY,
+    TILE_SIZE,
     TOP_ONLY,
     Entity,
     PathSegment,
@@ -42,6 +43,7 @@ from svg2stage import (
     _build_meta,
     _byte_angle_diff,
     _compute_segment_angle,
+    _ellipse_perimeter_segments,
     _get_stroke_color,
     _match_entity_id,
     _normalize_color,
@@ -463,11 +465,20 @@ class TestLoopRasterization:
         segs, _ = _ellipse_perimeter_segments(128, 128, 64, 64)
         shape = TerrainShape(segs, SURFACE_LOOP, is_loop=True, center=Point(128, 128))
         grid = r.rasterize([shape])
+        # Loop tiles should be SURFACE_LOOP; ramp tiles (outside loop x-range)
+        # should be SURFACE_SOLID.
+        loop_left_tx = int(128 - 64) // 16   # tile column of loop left edge
+        loop_right_tx = int(128 + 64) // 16  # tile column of loop right edge
         for ty in range(grid.rows):
             for tx in range(grid.cols):
                 tile = grid.get_tile(tx, ty)
                 if tile is not None:
-                    assert tile.surface_type == SURFACE_LOOP
+                    if loop_left_tx <= tx <= loop_right_tx:
+                        # Inside loop x-range: SURFACE_LOOP (loop overwrites ramps)
+                        assert tile.surface_type in (SURFACE_LOOP, SURFACE_SOLID)
+                    else:
+                        # Outside loop x-range: ramp tiles are SURFACE_SOLID
+                        assert tile.surface_type == SURFACE_SOLID
 
 
 # ---------------------------------------------------------------------------
@@ -873,15 +884,17 @@ class TestRasterizationPrecision:
         segs, _ = _ellipse_perimeter_segments(128, 128, 64, 64)
         shape = TerrainShape(segs, SURFACE_LOOP, is_loop=True, center=Point(128, 128))
         grid = r.rasterize([shape])
-        # Check that adjacent loop tiles have angle differences within threshold
+        # Check that adjacent LOOP tiles have angle differences within threshold.
+        # Skip ramp tiles (SURFACE_SOLID) and fill tiles (angle=0, height_array all 16)
+        # since ramp-to-loop boundaries have expected angle jumps.
         for ty in range(grid.rows):
             for tx in range(grid.cols):
                 tile = grid.get_tile(tx, ty)
-                if tile is None:
+                if tile is None or tile.surface_type != SURFACE_LOOP:
                     continue
                 for dtx, dty in [(1, 0), (0, 1)]:
                     neighbor = grid.get_tile(tx + dtx, ty + dty)
-                    if neighbor is None:
+                    if neighbor is None or neighbor.surface_type != SURFACE_LOOP:
                         continue
                     diff = _byte_angle_diff(tile.angle, neighbor.angle)
                     # Loop tiles should have smooth angle transitions
@@ -1201,3 +1214,160 @@ class TestEngineIntegration:
             assert meta["player_start"] is None
         finally:
             os.unlink(path)
+
+
+# ---------------------------------------------------------------------------
+# TestRampRasterization
+# ---------------------------------------------------------------------------
+
+class TestRampRasterization:
+    """Tests for quarter-circle entry/exit ramp generation in _rasterize_loop."""
+
+    @pytest.fixture()
+    def loop_grid(self):
+        """Rasterize a loop circle at (200, 100) with r=64 in a 400x240 grid."""
+        cx, cy, r = 200.0, 100.0, 64.0
+        segs, _ = _ellipse_perimeter_segments(cx, cy, r, r)
+        shape = TerrainShape(segs, SURFACE_LOOP, is_loop=True, center=Point(cx, cy))
+        rasterizer = Rasterizer(400, 240)
+        grid = rasterizer.rasterize([shape])
+        return grid, cx, cy, r
+
+    def test_ramp_tiles_exist(self, loop_grid):
+        """Entry and exit ramps should produce tiles outside the loop x-range."""
+        grid, cx, cy, r = loop_grid
+        loop_left_tx = int(cx - r) // TILE_SIZE
+        loop_right_tx = int(cx + r) // TILE_SIZE
+
+        # Entry ramp tiles: to the left of loop
+        entry_tiles = []
+        for ty in range(grid.rows):
+            for tx in range(loop_left_tx):
+                tile = grid.get_tile(tx, ty)
+                if tile is not None:
+                    entry_tiles.append((tx, ty))
+        assert len(entry_tiles) > 0, "No entry ramp tiles found"
+
+        # Exit ramp tiles: to the right of loop
+        exit_tiles = []
+        for ty in range(grid.rows):
+            for tx in range(loop_right_tx + 1, grid.cols):
+                tile = grid.get_tile(tx, ty)
+                if tile is not None:
+                    exit_tiles.append((tx, ty))
+        assert len(exit_tiles) > 0, "No exit ramp tiles found"
+
+    def test_ramp_surface_type_is_solid(self, loop_grid):
+        """Ramp tiles outside the loop x-range should be SURFACE_SOLID."""
+        grid, cx, cy, r = loop_grid
+        loop_left_tx = int(cx - r) // TILE_SIZE
+        loop_right_tx = int(cx + r) // TILE_SIZE
+
+        for ty in range(grid.rows):
+            for tx in range(grid.cols):
+                if tx < loop_left_tx or tx > loop_right_tx:
+                    tile = grid.get_tile(tx, ty)
+                    if tile is not None:
+                        assert tile.surface_type == SURFACE_SOLID, (
+                            f"Ramp tile at ({tx},{ty}) has type {tile.surface_type}, "
+                            f"expected SURFACE_SOLID ({SURFACE_SOLID})"
+                        )
+
+    def test_entry_ramp_angle_progression(self, loop_grid):
+        """Entry ramp surface tiles should have ascending angles (0→~64 range)."""
+        grid, cx, cy, r = loop_grid
+        loop_left_tx = int(cx - r) // TILE_SIZE
+        # Collect surface tiles (non-fill: not all height_array == 16)
+        ramp_angles = []
+        for tx in range(loop_left_tx):
+            for ty in range(grid.rows):
+                tile = grid.get_tile(tx, ty)
+                if tile is not None and max(tile.height_array) < 16:
+                    ramp_angles.append((tx, tile.angle))
+                    break  # topmost surface tile per column
+        if not ramp_angles:
+            pytest.skip("No entry ramp surface tiles found")
+        # All entry ramp angles should be in the ascending range (0-70 byte-angle)
+        for tx, angle in ramp_angles:
+            assert angle <= 70, (
+                f"Entry ramp tile at column {tx} has angle {angle}, "
+                f"expected in ascending range 0-70"
+            )
+        # Last angle should be greater than or equal to first (general upward trend)
+        first_angle = ramp_angles[0][1]
+        last_angle = ramp_angles[-1][1]
+        assert last_angle >= first_angle, "Entry ramp angles should increase left to right"
+
+    def test_exit_ramp_angle_progression(self, loop_grid):
+        """Exit ramp surface tiles should have angles from ~192 trending toward ~0."""
+        grid, cx, cy, r = loop_grid
+        loop_right_tx = int(cx + r) // TILE_SIZE
+        ramp_angles = []
+        for tx in range(loop_right_tx + 1, grid.cols):
+            for ty in range(grid.rows):
+                tile = grid.get_tile(tx, ty)
+                if tile is not None and max(tile.height_array) < 16:
+                    ramp_angles.append((tx, tile.angle))
+                    break
+        if not ramp_angles:
+            pytest.skip("No exit ramp surface tiles found")
+        # Last angle should be near 0 (flat), first should be high (descending, ~192+)
+        last_angle = ramp_angles[-1][1]
+        assert last_angle < 32 or last_angle > 240, (
+            f"Exit ramp end angle {last_angle} not near flat"
+        )
+
+    def test_ground_fill_below_ramp(self, loop_grid):
+        """Tiles well below ramp surface should be fully solid fill."""
+        grid, cx, cy, r = loop_grid
+        loop_left_tx = int(cx - r) // TILE_SIZE
+        ground_ty = int(cy + r) // TILE_SIZE  # tile row at ground level
+        found_fill = False
+        for tx in range(loop_left_tx):
+            # Check tiles near ground level (surface may span 1-2 tile rows)
+            for ty in range(ground_ty, min(ground_ty + 2, grid.rows)):
+                tile = grid.get_tile(tx, ty)
+                if tile is not None and tile.height_array == [16] * 16:
+                    found_fill = True
+                    break
+        assert found_fill, "No fully solid fill tiles found below entry ramp"
+
+    def test_no_gap_at_entry_junction(self, loop_grid):
+        """No empty tile gap at the entry ramp → loop junction."""
+        grid, cx, cy, r = loop_grid
+        # The junction is at x = cx - r. Check that tile column is occupied.
+        junction_tx = int(cx - r) // TILE_SIZE
+        has_tile = False
+        for ty in range(grid.rows):
+            if grid.get_tile(junction_tx, ty) is not None:
+                has_tile = True
+                break
+        assert has_tile, f"Gap at entry junction tile column {junction_tx}"
+        # Also check the tile column immediately to the left
+        left_tx = junction_tx - 1
+        if left_tx >= 0:
+            has_left = False
+            for ty in range(grid.rows):
+                if grid.get_tile(left_tx, ty) is not None:
+                    has_left = True
+                    break
+            assert has_left, f"Gap at entry ramp tile column {left_tx}"
+
+    def test_no_gap_at_exit_junction(self, loop_grid):
+        """No empty tile gap at the loop → exit ramp junction."""
+        grid, cx, cy, r = loop_grid
+        junction_tx = int(cx + r) // TILE_SIZE
+        has_tile = False
+        for ty in range(grid.rows):
+            if grid.get_tile(junction_tx, ty) is not None:
+                has_tile = True
+                break
+        assert has_tile, f"Gap at exit junction tile column {junction_tx}"
+        right_tx = junction_tx + 1
+        if right_tx < grid.cols:
+            has_right = False
+            for ty in range(grid.rows):
+                if grid.get_tile(right_tx, ty) is not None:
+                    has_right = True
+                    break
+            assert has_right, f"Gap at exit ramp tile column {right_tx}"

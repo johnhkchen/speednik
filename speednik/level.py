@@ -108,6 +108,7 @@ def _build_tiles(
                 height_array=cell["height_array"],
                 angle=cell["angle"],
                 solidity=sol,
+                tile_type=cell.get("type", 0),
             )
     return tiles
 

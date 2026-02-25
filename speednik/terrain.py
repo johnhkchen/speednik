@@ -31,6 +31,9 @@ TOP_ONLY = 1
 FULL = 2
 LRB_ONLY = 3
 
+# Surface types (from tile_map.json "type" field)
+SURFACE_LOOP = 5
+
 # Cast directions
 DOWN = 0
 RIGHT = 1
@@ -59,6 +62,7 @@ class Tile:
     height_array: list[int]  # 16 values, 0–16
     angle: int  # byte angle 0–255
     solidity: int  # NOT_SOLID / TOP_ONLY / FULL / LRB_ONLY
+    tile_type: int = 0  # surface type from tile_map.json (0=unknown, 5=loop)
 
     def width_array(self) -> list[int]:
         """Compute the width array (height_array rotated 90° for wall detection).
@@ -86,6 +90,7 @@ class SensorResult:
     found: bool  # whether a surface was detected
     distance: float  # distance from sensor to surface (negative = inside solid)
     tile_angle: int  # angle of the hit tile
+    tile_type: int = 0  # surface type of the hit tile (0=unknown, 5=loop)
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +162,7 @@ def _sensor_cast_down(
                     surface_y = (tile_y + 1) * TILE_SIZE + (TILE_SIZE - height_below)
                     dist = surface_y - sensor_y
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
             # No surface found even with extension
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         elif height == TILE_SIZE:
@@ -170,25 +175,25 @@ def _sensor_cast_down(
                     surface_y = (tile_y - 1) * TILE_SIZE + (TILE_SIZE - height_above)
                     dist = surface_y - sensor_y
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle, tile_type=tile_above.tile_type)
                 else:
                     # Tile above is also full — surface is at top of tile above
                     surface_y = (tile_y - 1) * TILE_SIZE
                     dist = surface_y - sensor_y
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle, tile_type=tile_above.tile_type)
             # No regression target — surface is at top of current tile
             surface_y = tile_y * TILE_SIZE
             dist = surface_y - sensor_y
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         else:
             # Normal case: surface is within this tile
             surface_y = tile_y * TILE_SIZE + (TILE_SIZE - height)
             dist = surface_y - sensor_y
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
     else:
         # No solid tile at sensor position — check tile below (extension)
@@ -199,7 +204,7 @@ def _sensor_cast_down(
                 surface_y = (tile_y + 1) * TILE_SIZE + (TILE_SIZE - height_below)
                 dist = surface_y - sensor_y
                 if abs(dist) <= MAX_SENSOR_RANGE:
-                    return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle)
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -235,7 +240,7 @@ def _sensor_cast_up(
                     surface_y = (tile_y - 1) * TILE_SIZE + height_above
                     dist = sensor_y - surface_y
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle, tile_type=tile_above.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         elif height == TILE_SIZE:
             # Regression: check tile below
@@ -246,12 +251,12 @@ def _sensor_cast_up(
                     surface_y = (tile_y + 1) * TILE_SIZE + height_below
                     dist = sensor_y - surface_y
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
             # Surface is at bottom of current full tile
             surface_y = (tile_y + 1) * TILE_SIZE
             dist = sensor_y - surface_y
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         else:
             # Normal case: bottom of solid region within this tile
@@ -304,7 +309,7 @@ def _sensor_cast_up(
             solid_top_y = tile_y * TILE_SIZE + (TILE_SIZE - height)
             dist = sensor_y - solid_top_y
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
     else:
         # No solid tile — check tile above (extension)
@@ -317,7 +322,7 @@ def _sensor_cast_up(
                 solid_top_y = (tile_y - 1) * TILE_SIZE + (TILE_SIZE - height_above)
                 dist = sensor_y - solid_top_y
                 if abs(dist) <= MAX_SENSOR_RANGE:
-                    return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle)
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle, tile_type=tile_above.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -360,7 +365,7 @@ def _sensor_cast_right(
                     surface_x = (tile_x + 1) * TILE_SIZE + (TILE_SIZE - width_right)
                     dist = surface_x - sensor_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         elif width == TILE_SIZE:
             # Regression: check tile to the left
@@ -372,18 +377,18 @@ def _sensor_cast_right(
                     surface_x = (tile_x - 1) * TILE_SIZE + (TILE_SIZE - width_left)
                     dist = surface_x - sensor_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
             surface_x = tile_x * TILE_SIZE
             dist = surface_x - sensor_x
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         else:
             # Width from the left edge of the tile
             surface_x = tile_x * TILE_SIZE + (TILE_SIZE - width)
             dist = surface_x - sensor_x
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
     else:
         # Check tile to the right
@@ -395,7 +400,7 @@ def _sensor_cast_right(
                 surface_x = (tile_x + 1) * TILE_SIZE + (TILE_SIZE - width_right)
                 dist = surface_x - sensor_x
                 if abs(dist) <= MAX_SENSOR_RANGE:
-                    return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle)
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -426,7 +431,7 @@ def _sensor_cast_left(
                     surface_x = (tile_x - 1) * TILE_SIZE + width_left
                     dist = sensor_x - surface_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         elif width == TILE_SIZE:
             # Regression: check tile to the right
@@ -438,11 +443,11 @@ def _sensor_cast_left(
                     surface_x = (tile_x + 1) * TILE_SIZE + width_right
                     dist = sensor_x - surface_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle)
+                        return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
             surface_x = (tile_x + 1) * TILE_SIZE
             dist = sensor_x - surface_x
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         else:
             # Width from left: solid occupies columns 0..width-1
@@ -450,7 +455,7 @@ def _sensor_cast_left(
             surface_x = tile_x * TILE_SIZE + width
             dist = sensor_x - surface_x
             if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle)
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
     else:
         # Check tile to the left
@@ -462,7 +467,7 @@ def _sensor_cast_left(
                 surface_x = (tile_x - 1) * TILE_SIZE + width_left
                 dist = sensor_x - surface_x
                 if abs(dist) <= MAX_SENSOR_RANGE:
-                    return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle)
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -665,6 +670,9 @@ def find_wall_push(
     if result.found:
         a = result.tile_angle
         if a <= WALL_ANGLE_THRESHOLD or a >= ANGLE_STEPS - WALL_ANGLE_THRESHOLD:
+            return SensorResult(found=False, distance=0.0, tile_angle=0)
+        # Loop tile exemption: loop surfaces should not block as walls
+        if result.tile_type == SURFACE_LOOP:
             return SensorResult(found=False, distance=0.0, tile_angle=0)
 
     return result
