@@ -5,6 +5,9 @@ description = "A Sonic 2 homage built with Pyxel"
 requires-python = ">=3.10"
 dependencies = ["pyxel"]
 
+[project.optional-dependencies]
+dev = ["pytest"]
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
