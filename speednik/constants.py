@@ -117,6 +117,11 @@ BOSS_SPAWN_Y = 480.0            # Boss ground level for Stage 3
 # Angle system
 ANGLE_STEPS = 256
 
+# Wall sensor angle gate (§3.5)
+# Tiles with byte angle <= this or >= (256 - this) are considered floor-range
+# and must not block horizontal wall sensors. 48 ≈ 67.5°.
+WALL_ANGLE_THRESHOLD = 48
+
 # Camera horizontal
 CAMERA_LEFT_BORDER = 144
 CAMERA_RIGHT_BORDER = 160
