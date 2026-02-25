@@ -1,0 +1,16 @@
+{
+  "width_px": 4800,
+  "height_px": 720,
+  "width_tiles": 300,
+  "height_tiles": 45,
+  "player_start": {
+    "x": 64,
+    "y": 610
+  },
+  "checkpoints": [
+    {
+      "x": 1620,
+      "y": 610
+    }
+  ]
+}

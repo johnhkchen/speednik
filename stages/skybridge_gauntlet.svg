@@ -1,0 +1,501 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 5200 896">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: Opening bridges (0-800)                           -->
+  <!-- Narrow platforms with gaps: 32px, 48px, 64px                 -->
+  <!-- Main bridge level at y=500, pits below                       -->
+  <!-- ============================================================ -->
+
+  <!-- Starting solid platform -->
+  <polygon points="0,500 160,500 160,896 0,896" stroke="#00AA00" fill="none"/>
+
+  <!-- Bridge segment A (96px wide) -->
+  <polygon points="192,500 288,500 288,516 192,516" stroke="#0000FF" fill="none"/>
+  <!-- 32px gap: 288-320 -->
+
+  <!-- Bridge segment B (96px wide) -->
+  <polygon points="320,500 416,500 416,516 320,516" stroke="#0000FF" fill="none"/>
+  <!-- 48px gap: 416-464 -->
+
+  <!-- Bridge segment C (96px wide) -->
+  <polygon points="464,500 560,500 560,516 464,516" stroke="#0000FF" fill="none"/>
+  <!-- 64px gap: 560-624 -->
+
+  <!-- Bridge segment D (176px wide, transition to section 2) -->
+  <polygon points="624,500 800,500 800,516 624,516" stroke="#0000FF" fill="none"/>
+
+  <!-- Player start -->
+  <circle id="player_start" cx="64" cy="490" r="8" fill="red"/>
+
+  <!-- Springs under gaps -->
+  <rect id="spring_up_1" x="296" y="600" width="16" height="16" fill="red"/>
+  <rect id="spring_up_2" x="432" y="600" width="16" height="16" fill="red"/>
+  <rect id="spring_up_3" x="584" y="600" width="16" height="16" fill="red"/>
+
+  <!-- Spring support platforms (small solid ledges for springs to sit on) -->
+  <polygon points="288,616 320,616 320,632 288,632" stroke="#00AA00" fill="none"/>
+  <polygon points="424,616 456,616 456,632 424,632" stroke="#00AA00" fill="none"/>
+  <polygon points="576,616 616,616 616,632 576,632" stroke="#00AA00" fill="none"/>
+
+  <!-- Section 1 enemies: 3 crabs on bridges, 1 buzzer above -->
+  <rect id="enemy_crab_1" x="224" y="484" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_2" x="368" y="484" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_3" x="512" y="484" width="16" height="16" fill="blue"/>
+  <circle id="enemy_buzzer_1" cx="700" cy="450" r="8" fill="purple"/>
+
+  <!-- Section 1 rings: along bridges and in arcs, 40 rings -->
+  <circle id="ring_001" cx="100" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_002" cx="130" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_003" cx="200" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_004" cx="220" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_005" cx="240" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_006" cx="260" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_007" cx="280" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_008" cx="304" cy="468" r="4" fill="yellow"/>
+  <circle id="ring_009" cx="330" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_010" cx="350" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_011" cx="370" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_012" cx="390" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_013" cx="410" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_014" cx="440" cy="462" r="4" fill="yellow"/>
+  <circle id="ring_015" cx="472" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_016" cx="492" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_017" cx="512" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_018" cx="532" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_019" cx="552" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_020" cx="592" cy="452" r="4" fill="yellow"/>
+  <circle id="ring_021" cx="636" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_022" cx="656" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_023" cx="676" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_024" cx="696" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_025" cx="716" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_026" cx="736" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_027" cx="756" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_028" cx="776" cy="480" r="4" fill="yellow"/>
+  <!-- Extra section 1 rings: arcs above gaps -->
+  <circle id="ring_029" cx="296" cy="456" r="4" fill="yellow"/>
+  <circle id="ring_030" cx="312" cy="456" r="4" fill="yellow"/>
+  <circle id="ring_031" cx="432" cy="448" r="4" fill="yellow"/>
+  <circle id="ring_032" cx="448" cy="448" r="4" fill="yellow"/>
+  <circle id="ring_033" cx="572" cy="436" r="4" fill="yellow"/>
+  <circle id="ring_034" cx="588" cy="436" r="4" fill="yellow"/>
+  <circle id="ring_035" cx="604" cy="436" r="4" fill="yellow"/>
+  <circle id="ring_036" cx="160" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_037" cx="180" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_038" cx="796" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_039" cx="140" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_040" cx="110" cy="486" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: Rhythm loop x1 (800-1600)                        -->
+  <!-- BUILD: downhill, LAUNCH: 30deg ramp, 80px gap,              -->
+  <!-- CLEAR: 2 enemies, ASCEND: bounce to upper platform           -->
+  <!-- ============================================================ -->
+
+  <!-- Checkpoint before rhythm x1 -->
+  <circle id="checkpoint_1" cx="780" cy="490" r="6" fill="cyan"/>
+
+  <!-- BUILD: Downhill slope from bridge level to ramp base -->
+  <polygon points="
+    800,500 1000,600
+    1000,896 800,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- LAUNCH: 30-degree ramp (rise ~93px over 160px horizontal) -->
+  <!-- Base at (1000,600), tip at (1160,507) -->
+  <polygon points="
+    1000,600 1160,507
+    1160,896 1000,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- 80px gap: 1160-1240 -->
+
+  <!-- CLEAR: Landing platform -->
+  <polygon points="1240,500 1440,500 1440,516 1240,516" stroke="#0000FF" fill="none"/>
+
+  <!-- ASCEND: Upper platform -->
+  <polygon points="1360,400 1480,400 1480,416 1360,416" stroke="#0000FF" fill="none"/>
+
+  <!-- Spring under gap -->
+  <rect id="spring_up_4" x="1192" y="600" width="16" height="16" fill="red"/>
+  <polygon points="1184,616 1216,616 1216,632 1184,632" stroke="#00AA00" fill="none"/>
+
+  <!-- Section 2 enemies: 2 crabs on landing platform -->
+  <rect id="enemy_crab_4" x="1300" y="484" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_5" x="1400" y="484" width="16" height="16" fill="blue"/>
+
+  <!-- Transition bridge from landing to section 3 -->
+  <polygon points="1440,500 1600,500 1600,516 1440,516" stroke="#0000FF" fill="none"/>
+
+  <!-- Section 2 rings: along slope, ramp, landing, upper; 45 rings -->
+  <!-- Downhill rings -->
+  <circle id="ring_041" cx="820" cy="490" r="4" fill="yellow"/>
+  <circle id="ring_042" cx="840" cy="496" r="4" fill="yellow"/>
+  <circle id="ring_043" cx="860" cy="504" r="4" fill="yellow"/>
+  <circle id="ring_044" cx="880" cy="512" r="4" fill="yellow"/>
+  <circle id="ring_045" cx="900" cy="522" r="4" fill="yellow"/>
+  <circle id="ring_046" cx="920" cy="532" r="4" fill="yellow"/>
+  <circle id="ring_047" cx="940" cy="544" r="4" fill="yellow"/>
+  <circle id="ring_048" cx="960" cy="556" r="4" fill="yellow"/>
+  <circle id="ring_049" cx="980" cy="570" r="4" fill="yellow"/>
+  <!-- Ramp rings -->
+  <circle id="ring_050" cx="1020" cy="580" r="4" fill="yellow"/>
+  <circle id="ring_051" cx="1040" cy="568" r="4" fill="yellow"/>
+  <circle id="ring_052" cx="1060" cy="556" r="4" fill="yellow"/>
+  <circle id="ring_053" cx="1080" cy="544" r="4" fill="yellow"/>
+  <circle id="ring_054" cx="1100" cy="532" r="4" fill="yellow"/>
+  <circle id="ring_055" cx="1120" cy="522" r="4" fill="yellow"/>
+  <circle id="ring_056" cx="1140" cy="512" r="4" fill="yellow"/>
+  <!-- Gap arc rings -->
+  <circle id="ring_057" cx="1170" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_058" cx="1190" cy="468" r="4" fill="yellow"/>
+  <circle id="ring_059" cx="1210" cy="464" r="4" fill="yellow"/>
+  <circle id="ring_060" cx="1230" cy="468" r="4" fill="yellow"/>
+  <!-- Landing platform rings -->
+  <circle id="ring_061" cx="1260" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_062" cx="1280" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_063" cx="1320" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_064" cx="1340" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_065" cx="1360" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_066" cx="1380" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_067" cx="1420" cy="480" r="4" fill="yellow"/>
+  <!-- Upper platform rings -->
+  <circle id="ring_068" cx="1380" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_069" cx="1400" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_070" cx="1420" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_071" cx="1440" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_072" cx="1460" cy="380" r="4" fill="yellow"/>
+  <!-- Transition rings -->
+  <circle id="ring_073" cx="1460" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_074" cx="1480" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_075" cx="1500" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_076" cx="1520" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_077" cx="1540" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_078" cx="1560" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_079" cx="1580" cy="480" r="4" fill="yellow"/>
+  <!-- Extra section 2 rings -->
+  <circle id="ring_080" cx="1000" cy="584" r="4" fill="yellow"/>
+  <circle id="ring_081" cx="1160" cy="490" r="4" fill="yellow"/>
+  <circle id="ring_082" cx="810" cy="492" r="4" fill="yellow"/>
+  <circle id="ring_083" cx="1250" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_084" cx="1430" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_085" cx="1590" cy="486" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: Rhythm loop x2 (1600-2400)                       -->
+  <!-- BUILD: downhill, LAUNCH: 35deg ramp, 112px gap,             -->
+  <!-- CLEAR: 3 enemies, ASCEND platform                            -->
+  <!-- ============================================================ -->
+
+  <!-- BUILD: Downhill slope from bridge level to ramp base -->
+  <polygon points="
+    1600,500 1800,600
+    1800,896 1600,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- LAUNCH: 35-degree ramp (rise ~112px over 160px horizontal) -->
+  <!-- Base at (1800,600), tip at (1960,488) -->
+  <polygon points="
+    1800,600 1960,488
+    1960,896 1800,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- 112px gap: 1960-2072 -->
+
+  <!-- CLEAR: Landing platform -->
+  <polygon points="2072,500 2272,500 2272,516 2072,516" stroke="#0000FF" fill="none"/>
+
+  <!-- ASCEND: Upper platform -->
+  <polygon points="2200,400 2320,400 2320,416 2200,416" stroke="#0000FF" fill="none"/>
+
+  <!-- Spring under gap -->
+  <rect id="spring_up_5" x="2008" y="600" width="16" height="16" fill="red"/>
+  <polygon points="2000,616 2032,616 2032,632 2000,632" stroke="#00AA00" fill="none"/>
+
+  <!-- Section 3 enemies: 2 crabs, 1 buzzer on landing -->
+  <rect id="enemy_crab_6" x="2120" y="484" width="16" height="16" fill="blue"/>
+  <circle id="enemy_buzzer_2" cx="2180" cy="460" r="8" fill="purple"/>
+  <rect id="enemy_crab_7" x="2230" y="484" width="16" height="16" fill="blue"/>
+
+  <!-- Transition bridge from landing to section 4 -->
+  <polygon points="2272,500 2400,500 2400,516 2272,516" stroke="#0000FF" fill="none"/>
+
+  <!-- Section 3 rings: along slope, ramp, landing, upper; 45 rings -->
+  <!-- Downhill rings -->
+  <circle id="ring_086" cx="1620" cy="490" r="4" fill="yellow"/>
+  <circle id="ring_087" cx="1640" cy="496" r="4" fill="yellow"/>
+  <circle id="ring_088" cx="1660" cy="504" r="4" fill="yellow"/>
+  <circle id="ring_089" cx="1680" cy="514" r="4" fill="yellow"/>
+  <circle id="ring_090" cx="1700" cy="524" r="4" fill="yellow"/>
+  <circle id="ring_091" cx="1720" cy="536" r="4" fill="yellow"/>
+  <circle id="ring_092" cx="1740" cy="548" r="4" fill="yellow"/>
+  <circle id="ring_093" cx="1760" cy="562" r="4" fill="yellow"/>
+  <circle id="ring_094" cx="1780" cy="576" r="4" fill="yellow"/>
+  <!-- Ramp rings -->
+  <circle id="ring_095" cx="1820" cy="580" r="4" fill="yellow"/>
+  <circle id="ring_096" cx="1840" cy="566" r="4" fill="yellow"/>
+  <circle id="ring_097" cx="1860" cy="552" r="4" fill="yellow"/>
+  <circle id="ring_098" cx="1880" cy="538" r="4" fill="yellow"/>
+  <circle id="ring_099" cx="1900" cy="524" r="4" fill="yellow"/>
+  <circle id="ring_100" cx="1920" cy="510" r="4" fill="yellow"/>
+  <circle id="ring_101" cx="1940" cy="498" r="4" fill="yellow"/>
+  <!-- Gap arc rings -->
+  <circle id="ring_102" cx="1972" cy="464" r="4" fill="yellow"/>
+  <circle id="ring_103" cx="1996" cy="448" r="4" fill="yellow"/>
+  <circle id="ring_104" cx="2020" cy="440" r="4" fill="yellow"/>
+  <circle id="ring_105" cx="2044" cy="448" r="4" fill="yellow"/>
+  <!-- Landing platform rings -->
+  <circle id="ring_106" cx="2092" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_107" cx="2112" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_108" cx="2140" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_109" cx="2160" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_110" cx="2200" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_111" cx="2250" cy="480" r="4" fill="yellow"/>
+  <!-- Upper platform rings -->
+  <circle id="ring_112" cx="2220" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_113" cx="2240" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_114" cx="2260" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_115" cx="2280" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_116" cx="2300" cy="380" r="4" fill="yellow"/>
+  <!-- Transition rings -->
+  <circle id="ring_117" cx="2290" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_118" cx="2310" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_119" cx="2330" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_120" cx="2350" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_121" cx="2370" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_122" cx="2390" cy="480" r="4" fill="yellow"/>
+  <!-- Extra section 3 rings -->
+  <circle id="ring_123" cx="1800" cy="584" r="4" fill="yellow"/>
+  <circle id="ring_124" cx="1960" cy="472" r="4" fill="yellow"/>
+  <circle id="ring_125" cx="2072" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_126" cx="2265" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_127" cx="1610" cy="492" r="4" fill="yellow"/>
+  <circle id="ring_128" cx="1650" cy="500" r="4" fill="yellow"/>
+  <circle id="ring_129" cx="2068" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_130" cx="2132" cy="486" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: Rhythm loop x3 (2400-3200)                       -->
+  <!-- BUILD: downhill, LAUNCH: 40deg ramp, 144px gap,             -->
+  <!-- CLEAR: 4 enemies, ASCEND platform                            -->
+  <!-- Requires spindash before ramp for enough launch speed        -->
+  <!-- ============================================================ -->
+
+  <!-- BUILD: Downhill slope from bridge level to ramp base -->
+  <polygon points="
+    2400,500 2600,600
+    2600,896 2400,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- LAUNCH: 40-degree ramp (rise ~134px over 160px horizontal) -->
+  <!-- Base at (2600,600), tip at (2760,466) -->
+  <polygon points="
+    2600,600 2760,466
+    2760,896 2600,896
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- 144px gap: 2760-2904 -->
+
+  <!-- CLEAR: Landing platform -->
+  <polygon points="2904,500 3104,500 3104,516 2904,516" stroke="#0000FF" fill="none"/>
+
+  <!-- ASCEND: Upper platform -->
+  <polygon points="3020,400 3140,400 3140,416 3020,416" stroke="#0000FF" fill="none"/>
+
+  <!-- Spring under gap -->
+  <rect id="spring_up_6" x="2824" y="600" width="16" height="16" fill="red"/>
+  <polygon points="2816,616 2848,616 2848,632 2816,632" stroke="#00AA00" fill="none"/>
+
+  <!-- Section 4 enemies: 3 crabs, 1 buzzer -->
+  <rect id="enemy_crab_8" x="2950" y="484" width="16" height="16" fill="blue"/>
+  <circle id="enemy_buzzer_3" cx="3000" cy="460" r="8" fill="purple"/>
+  <rect id="enemy_crab_9" x="3040" y="484" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_10" x="3080" y="484" width="16" height="16" fill="blue"/>
+
+  <!-- Transition bridge from landing to section 5 -->
+  <polygon points="3104,500 3200,500 3200,516 3104,516" stroke="#0000FF" fill="none"/>
+
+  <!-- Section 4 rings: along slope, ramp, landing, upper; 50 rings -->
+  <!-- Downhill rings -->
+  <circle id="ring_131" cx="2420" cy="490" r="4" fill="yellow"/>
+  <circle id="ring_132" cx="2440" cy="496" r="4" fill="yellow"/>
+  <circle id="ring_133" cx="2460" cy="504" r="4" fill="yellow"/>
+  <circle id="ring_134" cx="2480" cy="514" r="4" fill="yellow"/>
+  <circle id="ring_135" cx="2500" cy="524" r="4" fill="yellow"/>
+  <circle id="ring_136" cx="2520" cy="536" r="4" fill="yellow"/>
+  <circle id="ring_137" cx="2540" cy="548" r="4" fill="yellow"/>
+  <circle id="ring_138" cx="2560" cy="562" r="4" fill="yellow"/>
+  <circle id="ring_139" cx="2580" cy="576" r="4" fill="yellow"/>
+  <!-- Ramp rings -->
+  <circle id="ring_140" cx="2620" cy="580" r="4" fill="yellow"/>
+  <circle id="ring_141" cx="2640" cy="564" r="4" fill="yellow"/>
+  <circle id="ring_142" cx="2660" cy="548" r="4" fill="yellow"/>
+  <circle id="ring_143" cx="2680" cy="532" r="4" fill="yellow"/>
+  <circle id="ring_144" cx="2700" cy="516" r="4" fill="yellow"/>
+  <circle id="ring_145" cx="2720" cy="500" r="4" fill="yellow"/>
+  <circle id="ring_146" cx="2740" cy="484" r="4" fill="yellow"/>
+  <!-- Gap arc rings -->
+  <circle id="ring_147" cx="2776" cy="440" r="4" fill="yellow"/>
+  <circle id="ring_148" cx="2804" cy="420" r="4" fill="yellow"/>
+  <circle id="ring_149" cx="2832" cy="410" r="4" fill="yellow"/>
+  <circle id="ring_150" cx="2860" cy="420" r="4" fill="yellow"/>
+  <circle id="ring_151" cx="2888" cy="440" r="4" fill="yellow"/>
+  <!-- Landing platform rings -->
+  <circle id="ring_152" cx="2920" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_153" cx="2940" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_154" cx="2970" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_155" cx="3020" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_156" cx="3060" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_157" cx="3100" cy="480" r="4" fill="yellow"/>
+  <!-- Upper platform rings -->
+  <circle id="ring_158" cx="3040" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_159" cx="3060" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_160" cx="3080" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_161" cx="3100" cy="380" r="4" fill="yellow"/>
+  <circle id="ring_162" cx="3120" cy="380" r="4" fill="yellow"/>
+  <!-- Transition rings -->
+  <circle id="ring_163" cx="3120" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_164" cx="3140" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_165" cx="3160" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_166" cx="3180" cy="480" r="4" fill="yellow"/>
+  <!-- Extra section 4 rings -->
+  <circle id="ring_167" cx="2600" cy="584" r="4" fill="yellow"/>
+  <circle id="ring_168" cx="2760" cy="448" r="4" fill="yellow"/>
+  <circle id="ring_169" cx="2410" cy="492" r="4" fill="yellow"/>
+  <circle id="ring_170" cx="2450" cy="500" r="4" fill="yellow"/>
+  <circle id="ring_171" cx="2910" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_172" cx="2990" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_173" cx="3050" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_174" cx="3090" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_175" cx="2904" cy="474" r="4" fill="yellow"/>
+  <circle id="ring_176" cx="3070" cy="474" r="4" fill="yellow"/>
+  <circle id="ring_177" cx="2750" cy="472" r="4" fill="yellow"/>
+  <circle id="ring_178" cx="3190" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_179" cx="2470" cy="508" r="4" fill="yellow"/>
+  <circle id="ring_180" cx="2490" cy="518" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: Path split - the guardian (3200-4000)             -->
+  <!-- Main bridge with guardian enemy blocking passage              -->
+  <!-- Low detour: platforms below for safe but slow route           -->
+  <!-- ============================================================ -->
+
+  <!-- Main bridge (continuous top-only platform) -->
+  <polygon points="3200,500 4000,500 4000,516 3200,516" stroke="#0000FF" fill="none"/>
+
+  <!-- Guardian enemy on main bridge (large crab) -->
+  <rect id="enemy_crab_11" x="3580" y="484" width="16" height="16" fill="blue"/>
+
+  <!-- Low detour: platforms at y=700 -->
+  <polygon points="3280,700 3380,700 3380,716 3280,716" stroke="#0000FF" fill="none"/>
+  <polygon points="3428,700 3528,700 3528,716 3428,716" stroke="#0000FF" fill="none"/>
+  <polygon points="3576,700 3676,700 3676,716 3576,716" stroke="#0000FF" fill="none"/>
+  <polygon points="3724,700 3824,700 3824,716 3724,716" stroke="#0000FF" fill="none"/>
+
+  <!-- Spring at detour exit to return to bridge level -->
+  <rect id="spring_up_7" x="3800" y="684" width="16" height="16" fill="red"/>
+
+  <!-- Detour enemies: 2 crabs -->
+  <rect id="enemy_crab_12" x="3460" y="684" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_13" x="3620" y="684" width="16" height="16" fill="blue"/>
+
+  <!-- Section 5 rings: on bridge and detour; 30 rings -->
+  <!-- Main bridge rings (pre-guardian) -->
+  <circle id="ring_181" cx="3220" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_182" cx="3240" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_183" cx="3260" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_184" cx="3280" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_185" cx="3300" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_186" cx="3320" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_187" cx="3340" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_188" cx="3360" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_189" cx="3380" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_190" cx="3400" cy="480" r="4" fill="yellow"/>
+  <!-- Main bridge rings (post-guardian) -->
+  <circle id="ring_191" cx="3700" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_192" cx="3720" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_193" cx="3740" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_194" cx="3760" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_195" cx="3780" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_196" cx="3800" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_197" cx="3820" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_198" cx="3840" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_199" cx="3860" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_200" cx="3880" cy="480" r="4" fill="yellow"/>
+  <!-- Detour rings -->
+  <circle id="ring_201" cx="3300" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_202" cx="3330" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_203" cx="3360" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_204" cx="3450" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_205" cx="3500" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_206" cx="3600" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_207" cx="3650" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_208" cx="3750" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_209" cx="3780" cy="680" r="4" fill="yellow"/>
+  <circle id="ring_210" cx="3900" cy="480" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: Boss arena (4000-5200)                            -->
+  <!-- Flat enclosed arena, 20 rings, goal post                     -->
+  <!-- ============================================================ -->
+
+  <!-- Checkpoint before boss -->
+  <circle id="checkpoint_2" cx="3980" cy="490" r="6" fill="cyan"/>
+
+  <!-- Arena floor (solid) -->
+  <polygon points="4000,500 5200,500 5200,896 4000,896" stroke="#00AA00" fill="none"/>
+
+  <!-- Left wall -->
+  <polygon points="4000,200 4032,200 4032,500 4000,500" stroke="#00AA00" fill="none"/>
+
+  <!-- Right wall -->
+  <polygon points="5168,200 5200,200 5200,500 5168,500" stroke="#00AA00" fill="none"/>
+
+  <!-- Boss arena rings: 20 rings in two rows -->
+  <circle id="ring_211" cx="4100" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_212" cx="4150" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_213" cx="4200" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_214" cx="4250" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_215" cx="4300" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_216" cx="4350" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_217" cx="4400" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_218" cx="4450" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_219" cx="4500" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_220" cx="4550" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_221" cx="4600" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_222" cx="4650" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_223" cx="4700" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_224" cx="4750" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_225" cx="4800" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_226" cx="4850" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_227" cx="4900" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_228" cx="4950" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_229" cx="5000" cy="460" r="4" fill="yellow"/>
+  <circle id="ring_230" cx="5050" cy="460" r="4" fill="yellow"/>
+
+  <!-- Extra rings to reach ~250: along section transitions -->
+  <circle id="ring_231" cx="3920" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_232" cx="3940" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_233" cx="3960" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_234" cx="3980" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_235" cx="4040" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_236" cx="4060" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_237" cx="4080" cy="486" r="4" fill="yellow"/>
+  <circle id="ring_238" cx="5100" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_239" cx="5120" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_240" cx="5140" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_241" cx="3420" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_242" cx="3440" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_243" cx="3460" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_244" cx="3480" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_245" cx="3500" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_246" cx="3520" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_247" cx="3540" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_248" cx="3560" cy="480" r="4" fill="yellow"/>
+  <circle id="ring_249" cx="3410" cy="668" r="4" fill="yellow"/>
+  <circle id="ring_250" cx="3700" cy="668" r="4" fill="yellow"/>
+
+  <!-- Goal post -->
+  <rect id="goal_1" x="5150" y="464" width="16" height="36" fill="green"/>
+
+</svg>

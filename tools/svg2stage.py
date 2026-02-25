@@ -1039,6 +1039,10 @@ class StageWriter:
                 tile = grid.get_tile(tx, ty)
                 if tile is None:
                     row.append(NOT_SOLID)
+                elif tile.surface_type == SURFACE_LOOP and tile.is_loop_upper:
+                    # Upper loop tiles: TOP_ONLY so the player can enter
+                    # the loop without hitting the sides as walls.
+                    row.append(TOP_ONLY)
                 else:
                     row.append(SOLIDITY_MAP.get(tile.surface_type, NOT_SOLID))
             collision.append(row)

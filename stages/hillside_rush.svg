@@ -1,0 +1,338 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4800 720">
+
+  <!-- ============================================================ -->
+  <!-- SECTION 1: Flat runway (0-600)                               -->
+  <!-- Ground at y=620, bottom at y=720                             -->
+  <!-- ============================================================ -->
+  <polygon points="0,620 600,620 600,720 0,720" stroke="#00AA00" fill="none"/>
+
+  <!-- Player start -->
+  <circle id="player_start" cx="64" cy="610" r="8" fill="red"/>
+
+  <!-- Section 1 rings: gentle arc, 15 rings -->
+  <circle id="ring_001" cx="120" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_002" cx="152" cy="594" r="4" fill="yellow"/>
+  <circle id="ring_003" cx="184" cy="590" r="4" fill="yellow"/>
+  <circle id="ring_004" cx="216" cy="588" r="4" fill="yellow"/>
+  <circle id="ring_005" cx="248" cy="586" r="4" fill="yellow"/>
+  <circle id="ring_006" cx="280" cy="586" r="4" fill="yellow"/>
+  <circle id="ring_007" cx="312" cy="588" r="4" fill="yellow"/>
+  <circle id="ring_008" cx="344" cy="590" r="4" fill="yellow"/>
+  <circle id="ring_009" cx="376" cy="594" r="4" fill="yellow"/>
+  <circle id="ring_010" cx="408" cy="598" r="4" fill="yellow"/>
+  <circle id="ring_011" cx="440" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_012" cx="472" cy="604" r="4" fill="yellow"/>
+  <circle id="ring_013" cx="504" cy="606" r="4" fill="yellow"/>
+  <circle id="ring_014" cx="536" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_015" cx="568" cy="610" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 2: Gentle slopes (600-1600)                          -->
+  <!-- Undulating terrain: hills at ~y=570, valleys at ~y=650       -->
+  <!-- 3 hill/valley cycles. Using polyline-style polygon.          -->
+  <!-- ============================================================ -->
+  <polygon points="
+    600,620
+    650,618 700,612 740,600 780,588 820,576 860,570 900,570
+    940,576 980,588 1020,600 1050,612 1080,624 1100,636 1120,648 1140,650
+    1160,648 1180,636 1200,624 1220,612 1250,600 1280,588 1310,578 1340,572
+    1360,572 1380,578 1400,588 1420,600 1440,612 1460,624 1480,636 1500,648 1520,650
+    1540,646 1560,638 1580,628 1600,620
+    1600,720 600,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Section 2 enemies: 3 crabs on flat areas -->
+  <rect id="enemy_crab_1" x="870" y="554" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_2" x="1130" y="634" width="16" height="16" fill="blue"/>
+  <rect id="enemy_crab_3" x="1350" y="556" width="16" height="16" fill="blue"/>
+
+  <!-- Section 2 rings: along slope contours, 35 rings -->
+  <!-- Hill 1 ascending -->
+  <circle id="ring_016" cx="660" cy="602" r="4" fill="yellow"/>
+  <circle id="ring_017" cx="700" cy="592" r="4" fill="yellow"/>
+  <circle id="ring_018" cx="740" cy="580" r="4" fill="yellow"/>
+  <circle id="ring_019" cx="780" cy="568" r="4" fill="yellow"/>
+  <circle id="ring_020" cx="820" cy="558" r="4" fill="yellow"/>
+  <circle id="ring_021" cx="860" cy="552" r="4" fill="yellow"/>
+  <circle id="ring_022" cx="900" cy="552" r="4" fill="yellow"/>
+  <!-- Hill 1 descending -->
+  <circle id="ring_023" cx="940" cy="558" r="4" fill="yellow"/>
+  <circle id="ring_024" cx="980" cy="570" r="4" fill="yellow"/>
+  <circle id="ring_025" cx="1020" cy="582" r="4" fill="yellow"/>
+  <circle id="ring_026" cx="1060" cy="596" r="4" fill="yellow"/>
+  <!-- Valley 1 -->
+  <circle id="ring_027" cx="1100" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_028" cx="1140" cy="632" r="4" fill="yellow"/>
+  <!-- Hill 2 ascending -->
+  <circle id="ring_029" cx="1180" cy="618" r="4" fill="yellow"/>
+  <circle id="ring_030" cx="1220" cy="596" r="4" fill="yellow"/>
+  <circle id="ring_031" cx="1260" cy="580" r="4" fill="yellow"/>
+  <circle id="ring_032" cx="1300" cy="570" r="4" fill="yellow"/>
+  <circle id="ring_033" cx="1340" cy="556" r="4" fill="yellow"/>
+  <!-- Hill 2 descending -->
+  <circle id="ring_034" cx="1380" cy="560" r="4" fill="yellow"/>
+  <circle id="ring_035" cx="1420" cy="582" r="4" fill="yellow"/>
+  <circle id="ring_036" cx="1460" cy="606" r="4" fill="yellow"/>
+  <!-- Valley 2 -->
+  <circle id="ring_037" cx="1500" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_038" cx="1520" cy="634" r="4" fill="yellow"/>
+  <!-- Transition rings -->
+  <circle id="ring_039" cx="1540" cy="628" r="4" fill="yellow"/>
+  <circle id="ring_040" cx="1560" cy="620" r="4" fill="yellow"/>
+  <!-- Extra section 2 contour rings -->
+  <circle id="ring_041" cx="630" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_042" cx="840" cy="562" r="4" fill="yellow"/>
+  <circle id="ring_043" cx="1000" cy="576" r="4" fill="yellow"/>
+  <circle id="ring_044" cx="1160" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_045" cx="1240" cy="590" r="4" fill="yellow"/>
+  <circle id="ring_046" cx="1320" cy="562" r="4" fill="yellow"/>
+  <circle id="ring_047" cx="1440" cy="596" r="4" fill="yellow"/>
+  <circle id="ring_048" cx="1480" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_049" cx="1580" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_050" cx="680" cy="598" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 3: Half-pipe valleys (1600-2400)                     -->
+  <!-- 3 U-shaped valleys with increasing depth                     -->
+  <!-- Valley 1: x=1600-1840, depth ~80px (y=620 to y=680)         -->
+  <!-- Valley 2: x=1840-2100, depth ~110px (y=620 to y=700)        -->
+  <!-- Valley 3: x=2100-2400, depth ~130px (y=620 to y=710)        -->
+  <!-- ============================================================ -->
+  <polygon points="
+    1600,620
+    1620,630 1640,648 1660,664 1680,676 1700,680 1720,680
+    1740,676 1760,664 1780,648 1800,630 1820,620
+    1840,624 1860,640 1880,660 1900,680 1920,696 1940,700 1960,700
+    1980,696 2000,680 2020,660 2040,640 2060,624 2080,620
+    2100,628 2120,648 2140,668 2160,688 2180,704 2200,710 2220,710
+    2240,704 2260,688 2280,668 2300,648 2320,628 2340,620
+    2360,620 2400,620
+    2400,720 1600,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Checkpoint at section 3 entry -->
+  <circle id="checkpoint_1" cx="1620" cy="610" r="6" fill="cyan"/>
+
+  <!-- Spring at section 3 exit -->
+  <rect id="spring_up_1" x="2372" y="604" width="16" height="16" fill="red"/>
+
+  <!-- Section 3 rings: at crests and along valleys, 35 rings -->
+  <!-- Valley 1 crest/entry -->
+  <circle id="ring_051" cx="1610" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_052" cx="1640" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_053" cx="1660" cy="646" r="4" fill="yellow"/>
+  <circle id="ring_054" cx="1680" cy="658" r="4" fill="yellow"/>
+  <circle id="ring_055" cx="1700" cy="662" r="4" fill="yellow"/>
+  <circle id="ring_056" cx="1720" cy="662" r="4" fill="yellow"/>
+  <circle id="ring_057" cx="1740" cy="658" r="4" fill="yellow"/>
+  <circle id="ring_058" cx="1760" cy="646" r="4" fill="yellow"/>
+  <circle id="ring_059" cx="1780" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_060" cx="1810" cy="612" r="4" fill="yellow"/>
+  <!-- Valley 1/2 crest -->
+  <circle id="ring_061" cx="1830" cy="610" r="4" fill="yellow"/>
+  <!-- Valley 2 -->
+  <circle id="ring_062" cx="1860" cy="624" r="4" fill="yellow"/>
+  <circle id="ring_063" cx="1890" cy="648" r="4" fill="yellow"/>
+  <circle id="ring_064" cx="1920" cy="676" r="4" fill="yellow"/>
+  <circle id="ring_065" cx="1940" cy="682" r="4" fill="yellow"/>
+  <circle id="ring_066" cx="1960" cy="682" r="4" fill="yellow"/>
+  <circle id="ring_067" cx="1990" cy="668" r="4" fill="yellow"/>
+  <circle id="ring_068" cx="2020" cy="644" r="4" fill="yellow"/>
+  <circle id="ring_069" cx="2050" cy="618" r="4" fill="yellow"/>
+  <!-- Valley 2/3 crest -->
+  <circle id="ring_070" cx="2080" cy="610" r="4" fill="yellow"/>
+  <!-- Valley 3 -->
+  <circle id="ring_071" cx="2110" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_072" cx="2140" cy="640" r="4" fill="yellow"/>
+  <circle id="ring_073" cx="2170" cy="668" r="4" fill="yellow"/>
+  <circle id="ring_074" cx="2200" cy="692" r="4" fill="yellow"/>
+  <circle id="ring_075" cx="2220" cy="692" r="4" fill="yellow"/>
+  <circle id="ring_076" cx="2250" cy="676" r="4" fill="yellow"/>
+  <circle id="ring_077" cx="2280" cy="652" r="4" fill="yellow"/>
+  <circle id="ring_078" cx="2310" cy="632" r="4" fill="yellow"/>
+  <!-- Valley 3 exit crest -->
+  <circle id="ring_079" cx="2340" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_080" cx="2360" cy="610" r="4" fill="yellow"/>
+  <!-- Extra valley rings -->
+  <circle id="ring_081" cx="1800" cy="616" r="4" fill="yellow"/>
+  <circle id="ring_082" cx="2060" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_083" cx="2330" cy="618" r="4" fill="yellow"/>
+  <circle id="ring_084" cx="2380" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_085" cx="2390" cy="610" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 4: Acceleration runway (2400-3200)                   -->
+  <!-- Flat to very gentle downhill: y=620 to y=636                 -->
+  <!-- ============================================================ -->
+  <polygon points="
+    2400,620 2800,628 3200,636
+    3200,720 2400,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Section 4 rings: continuous line along surface, 45 rings -->
+  <circle id="ring_086" cx="2420" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_087" cx="2438" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_088" cx="2456" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_089" cx="2474" cy="609" r="4" fill="yellow"/>
+  <circle id="ring_090" cx="2492" cy="609" r="4" fill="yellow"/>
+  <circle id="ring_091" cx="2510" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_092" cx="2528" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_093" cx="2546" cy="611" r="4" fill="yellow"/>
+  <circle id="ring_094" cx="2564" cy="611" r="4" fill="yellow"/>
+  <circle id="ring_095" cx="2582" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_096" cx="2600" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_097" cx="2618" cy="613" r="4" fill="yellow"/>
+  <circle id="ring_098" cx="2636" cy="613" r="4" fill="yellow"/>
+  <circle id="ring_099" cx="2654" cy="614" r="4" fill="yellow"/>
+  <circle id="ring_100" cx="2672" cy="614" r="4" fill="yellow"/>
+  <circle id="ring_101" cx="2690" cy="615" r="4" fill="yellow"/>
+  <circle id="ring_102" cx="2708" cy="615" r="4" fill="yellow"/>
+  <circle id="ring_103" cx="2726" cy="616" r="4" fill="yellow"/>
+  <circle id="ring_104" cx="2744" cy="616" r="4" fill="yellow"/>
+  <circle id="ring_105" cx="2762" cy="617" r="4" fill="yellow"/>
+  <circle id="ring_106" cx="2780" cy="617" r="4" fill="yellow"/>
+  <circle id="ring_107" cx="2798" cy="618" r="4" fill="yellow"/>
+  <circle id="ring_108" cx="2816" cy="618" r="4" fill="yellow"/>
+  <circle id="ring_109" cx="2834" cy="619" r="4" fill="yellow"/>
+  <circle id="ring_110" cx="2852" cy="619" r="4" fill="yellow"/>
+  <circle id="ring_111" cx="2870" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_112" cx="2888" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_113" cx="2906" cy="621" r="4" fill="yellow"/>
+  <circle id="ring_114" cx="2924" cy="621" r="4" fill="yellow"/>
+  <circle id="ring_115" cx="2942" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_116" cx="2960" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_117" cx="2978" cy="623" r="4" fill="yellow"/>
+  <circle id="ring_118" cx="2996" cy="623" r="4" fill="yellow"/>
+  <circle id="ring_119" cx="3014" cy="624" r="4" fill="yellow"/>
+  <circle id="ring_120" cx="3032" cy="624" r="4" fill="yellow"/>
+  <circle id="ring_121" cx="3050" cy="625" r="4" fill="yellow"/>
+  <circle id="ring_122" cx="3068" cy="625" r="4" fill="yellow"/>
+  <circle id="ring_123" cx="3086" cy="626" r="4" fill="yellow"/>
+  <circle id="ring_124" cx="3104" cy="626" r="4" fill="yellow"/>
+  <circle id="ring_125" cx="3122" cy="627" r="4" fill="yellow"/>
+  <circle id="ring_126" cx="3140" cy="627" r="4" fill="yellow"/>
+  <circle id="ring_127" cx="3158" cy="628" r="4" fill="yellow"/>
+  <circle id="ring_128" cx="3176" cy="628" r="4" fill="yellow"/>
+  <circle id="ring_129" cx="3194" cy="629" r="4" fill="yellow"/>
+  <circle id="ring_130" cx="3200" cy="626" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 5: The loop (3200-4000)                              -->
+  <!-- Flat approach, 360° loop r=128, flat exit                    -->
+  <!-- Loop center at (3600, 508). Bottom at y=636, top at y=380.   -->
+  <!-- Ground meets loop bottom at y=636 (ground level).            -->
+  <!-- ============================================================ -->
+
+  <!-- Approach ground: flat at y=636 -->
+  <polygon points="
+    3200,636 3472,636
+    3472,720 3200,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- The loop -->
+  <circle cx="3600" cy="508" r="128" stroke="#00AA00" fill="none"/>
+
+  <!-- Exit ground: flat at y=636 -->
+  <polygon points="
+    3728,636 4000,636
+    4000,720 3728,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Ground beneath the loop -->
+  <polygon points="
+    3472,636 3728,636 3728,720 3472,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Section 5 rings: inside the loop, 25 rings arranged in a ring pattern -->
+  <circle id="ring_131" cx="3536" cy="528" r="4" fill="yellow"/>
+  <circle id="ring_132" cx="3544" cy="504" r="4" fill="yellow"/>
+  <circle id="ring_133" cx="3556" cy="484" r="4" fill="yellow"/>
+  <circle id="ring_134" cx="3572" cy="468" r="4" fill="yellow"/>
+  <circle id="ring_135" cx="3590" cy="456" r="4" fill="yellow"/>
+  <circle id="ring_136" cx="3610" cy="452" r="4" fill="yellow"/>
+  <circle id="ring_137" cx="3630" cy="456" r="4" fill="yellow"/>
+  <circle id="ring_138" cx="3648" cy="468" r="4" fill="yellow"/>
+  <circle id="ring_139" cx="3662" cy="484" r="4" fill="yellow"/>
+  <circle id="ring_140" cx="3672" cy="504" r="4" fill="yellow"/>
+  <circle id="ring_141" cx="3676" cy="528" r="4" fill="yellow"/>
+  <circle id="ring_142" cx="3672" cy="552" r="4" fill="yellow"/>
+  <circle id="ring_143" cx="3662" cy="572" r="4" fill="yellow"/>
+  <circle id="ring_144" cx="3648" cy="588" r="4" fill="yellow"/>
+  <circle id="ring_145" cx="3630" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_146" cx="3610" cy="604" r="4" fill="yellow"/>
+  <circle id="ring_147" cx="3590" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_148" cx="3572" cy="588" r="4" fill="yellow"/>
+  <circle id="ring_149" cx="3556" cy="572" r="4" fill="yellow"/>
+  <circle id="ring_150" cx="3544" cy="552" r="4" fill="yellow"/>
+  <!-- Approach rings -->
+  <circle id="ring_151" cx="3240" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_152" cx="3280" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_153" cx="3320" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_154" cx="3360" cy="622" r="4" fill="yellow"/>
+  <circle id="ring_155" cx="3420" cy="622" r="4" fill="yellow"/>
+
+  <!-- ============================================================ -->
+  <!-- SECTION 6: Goal run (4000-4800)                              -->
+  <!-- Gentle downhill: y=636 to y=660                              -->
+  <!-- ============================================================ -->
+  <polygon points="
+    4000,636 4200,642 4400,648 4600,654 4800,660
+    4800,720 4000,720
+  " stroke="#00AA00" fill="none"/>
+
+  <!-- Section 6 enemy: 1 buzzer -->
+  <circle id="enemy_buzzer_1" cx="4400" cy="600" r="8" fill="purple"/>
+
+  <!-- Section 6 rings: scattered, 25 rings -->
+  <circle id="ring_156" cx="4040" cy="624" r="4" fill="yellow"/>
+  <circle id="ring_157" cx="4080" cy="624" r="4" fill="yellow"/>
+  <circle id="ring_158" cx="4120" cy="626" r="4" fill="yellow"/>
+  <circle id="ring_159" cx="4160" cy="628" r="4" fill="yellow"/>
+  <circle id="ring_160" cx="4200" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_161" cx="4240" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_162" cx="4280" cy="632" r="4" fill="yellow"/>
+  <circle id="ring_163" cx="4320" cy="634" r="4" fill="yellow"/>
+  <circle id="ring_164" cx="4360" cy="636" r="4" fill="yellow"/>
+  <circle id="ring_165" cx="4440" cy="636" r="4" fill="yellow"/>
+  <circle id="ring_166" cx="4480" cy="638" r="4" fill="yellow"/>
+  <circle id="ring_167" cx="4520" cy="640" r="4" fill="yellow"/>
+  <circle id="ring_168" cx="4560" cy="642" r="4" fill="yellow"/>
+  <circle id="ring_169" cx="4600" cy="642" r="4" fill="yellow"/>
+  <circle id="ring_170" cx="4640" cy="644" r="4" fill="yellow"/>
+  <circle id="ring_171" cx="4680" cy="646" r="4" fill="yellow"/>
+  <circle id="ring_172" cx="4720" cy="648" r="4" fill="yellow"/>
+  <circle id="ring_173" cx="4060" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_174" cx="4100" cy="600" r="4" fill="yellow"/>
+  <circle id="ring_175" cx="4140" cy="602" r="4" fill="yellow"/>
+  <circle id="ring_176" cx="4500" cy="614" r="4" fill="yellow"/>
+  <circle id="ring_177" cx="4540" cy="616" r="4" fill="yellow"/>
+  <circle id="ring_178" cx="4580" cy="618" r="4" fill="yellow"/>
+  <circle id="ring_179" cx="4620" cy="620" r="4" fill="yellow"/>
+  <circle id="ring_180" cx="4660" cy="622" r="4" fill="yellow"/>
+
+  <!-- Extra rings to reach ~200 total: along section transitions -->
+  <circle id="ring_181" cx="590" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_182" cx="610" cy="612" r="4" fill="yellow"/>
+  <circle id="ring_183" cx="1590" cy="614" r="4" fill="yellow"/>
+  <circle id="ring_184" cx="2400" cy="610" r="4" fill="yellow"/>
+  <circle id="ring_185" cx="3180" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_186" cx="3960" cy="630" r="4" fill="yellow"/>
+  <circle id="ring_187" cx="3980" cy="632" r="4" fill="yellow"/>
+  <circle id="ring_188" cx="4760" cy="648" r="4" fill="yellow"/>
+  <circle id="ring_189" cx="3400" cy="550" r="4" fill="yellow"/>
+  <circle id="ring_190" cx="3440" cy="530" r="4" fill="yellow"/>
+  <circle id="ring_191" cx="3760" cy="530" r="4" fill="yellow"/>
+  <circle id="ring_192" cx="3820" cy="550" r="4" fill="yellow"/>
+  <circle id="ring_193" cx="3860" cy="570" r="4" fill="yellow"/>
+  <circle id="ring_194" cx="3920" cy="594" r="4" fill="yellow"/>
+  <circle id="ring_195" cx="760" cy="576" r="4" fill="yellow"/>
+  <circle id="ring_196" cx="800" cy="568" r="4" fill="yellow"/>
+  <circle id="ring_197" cx="1040" cy="594" r="4" fill="yellow"/>
+  <circle id="ring_198" cx="1200" cy="608" r="4" fill="yellow"/>
+  <circle id="ring_199" cx="1270" cy="574" r="4" fill="yellow"/>
+  <circle id="ring_200" cx="2160" cy="676" r="4" fill="yellow"/>
+
+  <!-- Goal post -->
+  <rect id="goal_1" x="4750" y="624" width="16" height="36" fill="green"/>
+
+</svg>

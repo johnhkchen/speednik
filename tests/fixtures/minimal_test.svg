@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 160">
+  <!-- Flat ground: solid polygon at y=128, spanning full width -->
+  <polygon points="0,128 320,128 320,160 0,160" stroke="#00AA00" fill="none"/>
+
+  <!-- 45° slope: ascending from (160,128) to (208,80) then down to (208,128) -->
+  <polyline points="160,128 208,80 208,128" stroke="#FF8800" fill="none"/>
+
+  <!-- Player start -->
+  <circle id="player_start" cx="32" cy="120" r="8" fill="red"/>
+
+  <!-- Rings -->
+  <circle id="ring_1" cx="80" cy="112" r="4" fill="yellow"/>
+  <circle id="ring_2" cx="112" cy="112" r="4" fill="yellow"/>
+
+  <!-- Enemy -->
+  <rect id="enemy_crab_1" x="240" y="112" width="16" height="16" fill="blue"/>
+</svg>

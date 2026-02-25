@@ -4,8 +4,23 @@ Defines all 16 sound effects (sounds[0..15]) and 7 music tracks (musics[0..6])
 using Pyxel's native 4-channel chiptune engine. Provides a simple public API for
 game modules to trigger sounds and music without touching Pyxel audio internals.
 
+Four stage tracks (title, hillside, pipeworks, skybridge) play professionally
+composed MP3 files via afplay subprocess when available; remaining tracks use
+chiptune playback.
+
 Standalone test: `uv run python -m speednik.audio`
 """
+
+import sys
+import os
+
+# Pyodide (web) has no subprocess or threading — detect early
+_IS_WEB = sys.platform == "emscripten"
+
+if not _IS_WEB:
+    import atexit
+    import subprocess
+    import threading
 
 import pyxel
 
@@ -52,10 +67,25 @@ CH_SFX = 3
 _JINGLE_TRACKS = {MUSIC_CLEAR, MUSIC_GAMEOVER}
 
 # ---------------------------------------------------------------------------
+# MP3 playback mapping (afplay subprocess)
+# ---------------------------------------------------------------------------
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_MP3_TRACKS: dict[int, str] = {
+    MUSIC_TITLE: os.path.join(_PROJECT_ROOT, "assets", "MAIN_MENU_Genesis_of_Glory.mp3"),
+    MUSIC_HILLSIDE: os.path.join(_PROJECT_ROOT, "assets", "LV1_Pixel_Pursuit.mp3"),
+    MUSIC_PIPEWORKS: os.path.join(_PROJECT_ROOT, "assets", "LV2_Chrome_Citadel.mp3"),
+    MUSIC_SKYBRIDGE: os.path.join(_PROJECT_ROOT, "assets", "LV3_Genesis_Gauntlet.mp3"),
+}
+
+# ---------------------------------------------------------------------------
 # Module state
 # ---------------------------------------------------------------------------
 _current_music: int | None = None
 _sfx_ducking: bool = False
+_afplay_proc: object | None = None
+_loop_stop: object | None = None
+_mp3_active: bool = False
 
 
 # ===========================================================================
@@ -215,50 +245,89 @@ def _define_sfx() -> None:
 # ===========================================================================
 
 def _define_track_title() -> None:
-    # Title — 92 BPM, D# major — triumphant grand opening
-    melody = "d#3 g#3 a#3 d#4 c4 a#3 g#3 f3 g#3 a#3 g3 f3 d#3 r d#3 r"
-    bass   = "d#2 a#2 d#2 a#2 g#2 d#2 g#2 d#2 f2 c2 f2 c2 g#2 d#2 g#2 d#2"
-    perc   = "c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3"
-    n = len(melody.split())
-    pyxel.sounds[16].set(melody, "p" * n, "6" * n,        "n" * n, 10)
-    pyxel.sounds[17].set(bass,   "t" * n, "4" * n,        "n" * n, 10)
-    pyxel.sounds[18].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 10)
+    # Title — 92 BPM, D# major — triumphant opening.
+    # speed=10 → 4 steps/beat. Notes repeated for sustain. 32 steps = 2 bars.
+    # Melody arc: root → 4th → 5th → octave → down → rest → variation → resolve
+    pyxel.sounds[16].set(
+        "d#3 d#3 d#3 r  g#3 g#3 a#3 r  d#4 d#4 r   r "
+        "c4  a#3 g#3 r  d#3 d#3 g3  r  g#3 g#3 r   g3 "
+        "f3  f3  r   r  d#3 d#3 r   r ",
+        "p", "6", "n", 10)
+    # Bass: whole-note chord roots (4 steps each) — I V VII IV I VI IV V
+    pyxel.sounds[17].set(
+        "g#2 g#2 g#2 g#2  d#3 d#3 d#3 d#3  c3  c3  c3  c3 "
+        "a#2 a#2 a#2 a#2  g#2 g#2 g#2 g#2  c3  c3  c3  c3 "
+        "a#2 a#2 a#2 a#2  d#2 d#2 d#2 d#2 ",
+        "t", "4", "n", 10)
+    # Perc: kick on beats 1&3, snare on beats 2&4 (4 steps = 1 beat)
+    pyxel.sounds[18].set(
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r "
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r ",
+        "n", "7", "n", 10)
     pyxel.musics[MUSIC_TITLE].set([16], [17], [18])
 
 
 def _define_track_hillside() -> None:
-    # Hillside — 99 BPM, C# major — bright, upbeat, Emerald Hill feel
-    melody = "c#3 d#3 f#3 g#3 f#3 d#3 c#3 r c#3 g#3 a#3 c4 a#3 g#3 f#3 d#3"
-    bass   = "c#2 g#2 c#2 g#2 f#2 c#2 f#2 c#2 a#2 f2 a#2 f2 g#2 d#2 g#2 d#2"
-    perc   = "c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3 c3 a#3 f3 a#3"
-    n = len(melody.split())
-    pyxel.sounds[19].set(melody, "p" * n, "6" * n,        "n" * n, 9)
-    pyxel.sounds[20].set(bass,   "t" * n, "4" * n,        "n" * n, 9)
-    pyxel.sounds[21].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 9)
+    # Hillside — 99 BPM, C# major — bright, bouncy. speed=9, 32 steps.
+    # Melody rises through the scale, peaks at c4, resolves back to c#3.
+    pyxel.sounds[19].set(
+        "c#3 c#3 r   r   d#3 r   f#3 r   g#3 g#3 r   r "
+        "f#3 d#3 c#3 r   c#3 r   g#3 r   a#3 a#3 r   r "
+        "c4  r   a#3 r   g#3 f#3 d#3 r  ",
+        "p", "6", "n", 9)
+    # Bass: I V IV I  VI III IV V
+    pyxel.sounds[20].set(
+        "c#2 c#2 c#2 c#2  g#2 g#2 g#2 g#2  f#2 f#2 f#2 f#2 "
+        "c#2 c#2 c#2 c#2  a#2 a#2 a#2 a#2  f2  f2  f2  f2 "
+        "f#2 f#2 f#2 f#2  g#2 g#2 g#2 g#2 ",
+        "t", "4", "n", 9)
+    # Perc: kick on 1&3, snare on 2&4
+    pyxel.sounds[21].set(
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r "
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r ",
+        "n", "7", "n", 9)
     pyxel.musics[MUSIC_HILLSIDE].set([19], [20], [21])
 
 
 def _define_track_pipeworks() -> None:
-    # Pipeworks — 103 BPM, F minor — dark, industrial, Chemical Plant feel
-    melody = "f3 r f3 g#3 a#3 r a#3 c4 a#3 r g#3 f3 d#3 r f3 r"
-    bass   = "f2 c3 f2 c3 d#2 a#2 d#2 a#2 c3 g2 c3 g2 a#2 f2 a#2 f2"
-    perc   = "c3 c3 f3 c3 c3 c3 f3 c3 c3 c3 f3 c3 c3 c3 f3 c3"
-    n = len(melody.split())
-    pyxel.sounds[22].set(melody, "s" * n, "6" * n,        "n" * n, 9)
-    pyxel.sounds[23].set(bass,   "t" * n, "4" * n,        "n" * n, 9)
-    pyxel.sounds[24].set(perc,   "n" * n, "7575" * (n // 4), "n" * n, 9)
+    # Pipeworks — 103 BPM, F minor — dark, industrial. speed=9, square lead.
+    # Sparse melody with punchy rests; heavier kick pattern for industrial feel.
+    pyxel.sounds[22].set(
+        "f3 r  f3 r   r   r  g#3 r  a#3 a#3 r   r "
+        "g#3 r  f3 r   d#3 d#3 r   r  c3  r  f3  r "
+        "r   r  d#3 r  a#3 r  f3  r  ",
+        "s", "6", "n", 9)
+    # Bass: deep, repeating root drone for grinding industrial feel
+    pyxel.sounds[23].set(
+        "f2  f2  f2  f2   f2  f2  f2  f2   d#2 d#2 d#2 d#2 "
+        "d#2 d#2 d#2 d#2  c3  c3  c3  c3   c3  c3  c3  c3 "
+        "a#2 a#2 a#2 a#2  f2  f2  f2  f2  ",
+        "t", "5", "n", 9)
+    # Perc: kick-kick-snare for heavier industrial pattern
+    pyxel.sounds[24].set(
+        "c3 c3 r  r  f3 r  r  r  c3 c3 r  r  f3 r  r  r "
+        "c3 c3 r  r  f3 r  r  r  c3 c3 r  r  f3 r  r  r ",
+        "n", "7", "n", 9)
     pyxel.musics[MUSIC_PIPEWORKS].set([22], [23], [24])
 
 
 def _define_track_skybridge() -> None:
-    # Skybridge — 161 BPM, D# major — fast, intense, Sky Chase feel
-    melody = "d#3 f3 g#3 a#3 g#3 f3 d#3 f3 g3 a#3 g3 f3 d#3 f3 g#3 a#3"
-    bass   = "d#2 d#2 g#2 g#2 a#2 a#2 f2 f2 d#2 d#2 g2 g2 g#2 g#2 a#2 a#2"
-    perc   = "c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3 c3 f3"
-    n = len(melody.split())
-    pyxel.sounds[25].set(melody, "p" * n, "6" * n,        "n" * n, 6)
-    pyxel.sounds[26].set(bass,   "t" * n, "4" * n,        "n" * n, 6)
-    pyxel.sounds[27].set(perc,   "n" * n, "6363" * (n // 4), "n" * n, 6)
+    # Skybridge — 161 BPM, D# major — fast, soaring. speed=6, 32 steps.
+    # 8th-note driven melody with clear arc; driving two-beat bass.
+    pyxel.sounds[25].set(
+        "d#3 r  f3  r  g#3 r  a#3 r  g#3 r  f3  r  d#3 r  f3  r "
+        "g3  r  a#3 r  c4  r  a#3 r  g#3 r  f3  r  d#3 r  r   r  ",
+        "p", "6", "n", 6)
+    # Bass: half-note roots (2 steps each) for forward push
+    pyxel.sounds[26].set(
+        "d#2 d#2  g#2 g#2  a#2 a#2  f2  f2  d#2 d#2  g2  g2  g#2 g#2  a#2 a#2 "
+        "d#2 d#2  g#2 g#2  a#2 a#2  f2  f2  c3  c3   c3  c3  g#2 g#2  d#2 d#2 ",
+        "t", "4", "n", 6)
+    # Perc: kick on 1&3, snare on 2&4 (4 steps/beat at speed=6)
+    pyxel.sounds[27].set(
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r "
+        "c3 r  r  r  f3 r  r  r  c3 r  r  r  f3 r  r  r ",
+        "n", "7", "n", 6)
     pyxel.musics[MUSIC_SKYBRIDGE].set([25], [26], [27])
 
 
@@ -401,6 +470,36 @@ def _get_percussion_for_track(track_id: int) -> int | None:
     return mapping.get(track_id)
 
 
+def _stop_afplay() -> None:
+    """Kill any active afplay subprocess and stop the loop thread."""
+    global _afplay_proc, _loop_stop, _mp3_active
+
+    if _IS_WEB:
+        _mp3_active = False
+        return
+
+    if _loop_stop is not None:
+        _loop_stop.set()
+    if _afplay_proc is not None:
+        _afplay_proc.terminate()
+        _afplay_proc.wait()
+        _afplay_proc = None
+    _loop_stop = None
+    _mp3_active = False
+
+
+def _afplay_loop(path: str, stop_event: "threading.Event") -> None:
+    """Loop function for daemon thread — restarts afplay until stopped."""
+    global _afplay_proc
+
+    while not stop_event.is_set():
+        proc = subprocess.Popen(["afplay", path])
+        _afplay_proc = proc
+        proc.wait()
+        if stop_event.is_set():
+            break
+
+
 # ===========================================================================
 # Public API
 # ===========================================================================
@@ -412,6 +511,8 @@ def init_audio() -> None:
     """
     _define_sfx()
     _define_music()
+    if not _IS_WEB:
+        atexit.register(_stop_afplay)
 
 
 def play_sfx(sfx_id: int) -> None:
@@ -423,8 +524,9 @@ def play_sfx(sfx_id: int) -> None:
     global _sfx_ducking
 
     pyxel.play(CH_SFX, sfx_id)
-    # Duck percussion channel while SFX plays
-    if _current_music is not None:
+    # Duck percussion channel while SFX plays (skip when MP3 is active —
+    # pyxel percussion channel isn't used in that case)
+    if _current_music is not None and not _mp3_active:
         pyxel.stop(CH_PERCUSSION)
         _sfx_ducking = True
 
@@ -432,28 +534,50 @@ def play_sfx(sfx_id: int) -> None:
 def play_music(track_id: int) -> None:
     """Start a music track.
 
-    Looping tracks (0–4) loop continuously. Jingle tracks (5–6) play once.
+    MP3-mapped tracks (title, hillside, pipeworks, skybridge) play via afplay
+    subprocess. Remaining tracks use pyxel chiptune engine.
+    Looping tracks restart automatically. Jingle tracks (5–6) play once.
 
     Args:
         track_id: Music slot index (0–6).
     """
-    global _current_music, _sfx_ducking
+    global _current_music, _sfx_ducking, _afplay_proc, _loop_stop, _mp3_active
 
-    loop = track_id not in _JINGLE_TRACKS
-    pyxel.playm(track_id, loop=loop)
+    _stop_afplay()
+
+    mp3_path = _MP3_TRACKS.get(track_id)
+    if not _IS_WEB and mp3_path is not None and os.path.isfile(mp3_path):
+        loop = track_id not in _JINGLE_TRACKS
+        if loop:
+            stop_event = threading.Event()
+            _loop_stop = stop_event
+            t = threading.Thread(
+                target=_afplay_loop, args=(mp3_path, stop_event), daemon=True
+            )
+            t.start()
+        else:
+            _afplay_proc = subprocess.Popen(["afplay", mp3_path])
+        _mp3_active = True
+    else:
+        loop = track_id not in _JINGLE_TRACKS
+        pyxel.playm(track_id, loop=loop)
+        _mp3_active = False
+
     _current_music = track_id
     _sfx_ducking = False
 
 
 def stop_music() -> None:
-    """Stop all music channels (0–2)."""
-    global _current_music, _sfx_ducking
+    """Stop all music playback — kills afplay subprocess and pyxel channels."""
+    global _current_music, _sfx_ducking, _mp3_active
 
+    _stop_afplay()
     pyxel.stop(CH_MELODY)
     pyxel.stop(CH_BASS)
     pyxel.stop(CH_PERCUSSION)
     _current_music = None
     _sfx_ducking = False
+    _mp3_active = False
 
 
 def update_audio() -> None:
@@ -463,7 +587,7 @@ def update_audio() -> None:
     """
     global _sfx_ducking
 
-    if _sfx_ducking and pyxel.play_pos(CH_SFX) is None:
+    if _sfx_ducking and not _mp3_active and pyxel.play_pos(CH_SFX) is None:
         # SFX finished — resume percussion
         if _current_music is not None:
             perc_slot = _get_percussion_for_track(_current_music)
