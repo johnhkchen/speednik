@@ -3,7 +3,11 @@ name = "speednik"
 version = "0.1.0"
 description = "A Sonic 2 homage built with Pyxel"
 requires-python = ">=3.10"
-dependencies = ["pyxel"]
+dependencies = [
+    "pyxel",
+    "numpy",
+    "gymnasium>=1.2.3",
+]
 
 [project.optional-dependencies]
 dev = ["pytest"]
@@ -15,4 +19,5 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "librosa>=0.11.0",
+    "pytest>=9.0.2",
 ]
