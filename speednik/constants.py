@@ -89,6 +89,22 @@ CHOPPER_HITBOX_H = 16
 GUARDIAN_HITBOX_W = 24
 GUARDIAN_HITBOX_H = 28
 
+# Boss: Egg Piston (§7.3)
+BOSS_HP = 8
+BOSS_ESCALATION_HP = 4             # HP at which escalation triggers
+BOSS_IDLE_DURATION = 120           # 2.0s at 60fps
+BOSS_DESCEND_DURATION = 60         # 1.0s
+BOSS_VULNERABLE_DURATION = 90      # 1.5s
+BOSS_VULNERABLE_DURATION_ESC = 60  # 1.0s after escalation
+BOSS_ASCEND_DURATION = 60          # 1.0s
+BOSS_IDLE_SPEED = 1.0              # px/frame
+BOSS_IDLE_SPEED_ESC = 2.0          # px/frame after escalation
+BOSS_INDICATOR_LEAD = 60           # frames before descend when indicator appears
+BOSS_HITBOX_W = 24
+BOSS_HITBOX_H = 32
+BOSS_HIT_INVULN = 30              # frames of boss invulnerability after hit
+BOSS_ARENA_HALF_W = 128           # ±128px from spawn for patrol bounds
+
 # Angle system
 ANGLE_STEPS = 256
 

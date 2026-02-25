@@ -17,6 +17,7 @@ from speednik.audio import (
     SFX_LIQUID_RISING,
     SFX_RING,
     SFX_SPRING,
+    SFX_STAGE_CLEAR,
     init_audio,
     play_sfx,
     update_audio,
@@ -230,6 +231,10 @@ class App:
                 play_sfx(SFX_HURT)
             elif event == EnemyEvent.SHIELD_BREAK:
                 play_sfx(SFX_BOSS_HIT)
+            elif event == EnemyEvent.BOSS_HIT:
+                play_sfx(SFX_BOSS_HIT)
+            elif event == EnemyEvent.BOSS_DEFEATED:
+                play_sfx(SFX_STAGE_CLEAR)
 
         # Spring cooldowns
         update_spring_cooldowns(self.springs)
@@ -292,6 +297,17 @@ class App:
                 for row in range(lh):
                     if (ly + row + pyxel.frame_count // 4) % 2 == 0:
                         pyxel.line(lx1, ly + row, lx2, ly + row, 10)  # Blue
+
+        # Boss targeting indicator
+        for enemy in self.enemies:
+            if (enemy.alive and enemy.enemy_type == "enemy_egg_piston"
+                    and enemy.boss_state in ("idle", "descend")
+                    and enemy.boss_timer <= 60):
+                renderer.draw_boss_indicator(
+                    int(enemy.boss_target_x),
+                    int(enemy.boss_ground_y),
+                    pyxel.frame_count,
+                )
 
         # Enemies
         for enemy in self.enemies:

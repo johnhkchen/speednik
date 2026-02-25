@@ -375,6 +375,18 @@ def _draw_enemy_egg_piston(x: int, y: int, frame_count: int) -> None:
     pyxel.line(x + 6, y + 8, x + 6, y + 14, 11)
 
 
+def draw_boss_indicator(x: int, ground_y: int, frame_count: int) -> None:
+    """Draw targeting indicator where boss will land (flashing dashed line)."""
+    if frame_count % 8 < 4:
+        return  # Flash off
+    # Dashed vertical line from 40px above ground to ground
+    for dy in range(0, 40, 4):
+        if dy % 8 < 4:
+            pyxel.pset(x, ground_y - dy, 9)  # Hazard orange
+    # Crosshair on ground
+    pyxel.line(x - 4, ground_y, x + 4, ground_y, 9)
+
+
 # Entity type → draw function mapping
 _ENTITY_DRAWERS: dict[str, callable] = {
     "enemy_crab": _draw_enemy_crab,

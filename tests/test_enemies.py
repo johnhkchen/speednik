@@ -3,6 +3,16 @@
 from __future__ import annotations
 
 from speednik.constants import (
+    BOSS_ASCEND_DURATION,
+    BOSS_DESCEND_DURATION,
+    BOSS_ESCALATION_HP,
+    BOSS_HIT_INVULN,
+    BOSS_HP,
+    BOSS_IDLE_DURATION,
+    BOSS_IDLE_SPEED,
+    BOSS_IDLE_SPEED_ESC,
+    BOSS_VULNERABLE_DURATION,
+    BOSS_VULNERABLE_DURATION_ESC,
     CHOPPER_JUMP_INTERVAL,
     CHOPPER_JUMP_VELOCITY,
     CRAB_PATROL_RANGE,
@@ -445,3 +455,427 @@ class TestGuardian:
 
         assert enemy.alive is True
         assert EnemyEvent.PLAYER_DAMAGED in events
+
+
+# ---------------------------------------------------------------------------
+# Helper: create an egg piston boss in a specific state
+# ---------------------------------------------------------------------------
+
+def _make_boss(
+    x: float = 500.0,
+    y: float = 500.0,
+    state: str = "idle",
+    hp: int = BOSS_HP,
+    timer: int = 0,
+    escalated: bool = False,
+) -> Enemy:
+    """Create a boss enemy for testing."""
+    boss = Enemy(
+        x=x,
+        y=y,
+        enemy_type="enemy_egg_piston",
+        origin_x=x,
+        boss_state=state,
+        boss_hp=hp,
+        boss_timer=timer if timer else BOSS_IDLE_DURATION,
+        boss_hover_y=y - 80.0,
+        boss_ground_y=y,
+        boss_target_x=x,
+        boss_left_x=x - 128.0,
+        boss_right_x=x + 128.0,
+        boss_escalated=escalated,
+    )
+    return boss
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonLoading
+# ---------------------------------------------------------------------------
+
+class TestEggPistonLoading:
+    def test_loads_boss_state(self):
+        entities = [{"type": "enemy_egg_piston", "x": 500, "y": 500}]
+        enemies = load_enemies(entities)
+        boss = enemies[0]
+        assert boss.boss_state == "idle"
+        assert boss.boss_hp == BOSS_HP
+        assert boss.boss_timer == BOSS_IDLE_DURATION
+
+    def test_loads_boss_positions(self):
+        entities = [{"type": "enemy_egg_piston", "x": 500, "y": 500}]
+        enemies = load_enemies(entities)
+        boss = enemies[0]
+        assert boss.boss_hover_y == 420.0  # 500 - 80
+        assert boss.boss_ground_y == 500.0
+        assert boss.boss_target_x == 500.0
+
+    def test_loads_boss_arena_bounds(self):
+        entities = [{"type": "enemy_egg_piston", "x": 500, "y": 500}]
+        enemies = load_enemies(entities)
+        boss = enemies[0]
+        assert boss.boss_left_x == 372.0  # 500 - 128
+        assert boss.boss_right_x == 628.0  # 500 + 128
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonStateTransitions
+# ---------------------------------------------------------------------------
+
+class TestEggPistonStateTransitions:
+    def test_idle_to_descend(self):
+        """Boss transitions from idle to descend when timer expires."""
+        boss = _make_boss(state="idle", timer=1)
+        update_enemies([boss])
+        assert boss.boss_state == "descend"
+        assert boss.boss_timer == BOSS_DESCEND_DURATION
+
+    def test_descend_to_vulnerable(self):
+        """Boss transitions from descend to vulnerable when timer expires."""
+        boss = _make_boss(state="descend", timer=1)
+        update_enemies([boss])
+        assert boss.boss_state == "vulnerable"
+        assert boss.boss_timer == BOSS_VULNERABLE_DURATION
+
+    def test_descend_to_vulnerable_escalated(self):
+        """After escalation, vulnerable duration is shorter."""
+        boss = _make_boss(state="descend", timer=1, escalated=True)
+        update_enemies([boss])
+        assert boss.boss_state == "vulnerable"
+        assert boss.boss_timer == BOSS_VULNERABLE_DURATION_ESC
+
+    def test_vulnerable_to_ascend(self):
+        """Boss transitions from vulnerable to ascend when timer expires."""
+        boss = _make_boss(state="vulnerable", timer=1)
+        update_enemies([boss])
+        assert boss.boss_state == "ascend"
+        assert boss.boss_timer == BOSS_ASCEND_DURATION
+
+    def test_ascend_to_idle(self):
+        """Boss transitions from ascend to idle when timer expires."""
+        boss = _make_boss(state="ascend", timer=1)
+        update_enemies([boss])
+        assert boss.boss_state == "idle"
+        assert boss.boss_timer == BOSS_IDLE_DURATION
+
+    def test_full_cycle(self):
+        """Boss completes a full state cycle."""
+        boss = _make_boss(state="idle", timer=1)
+        update_enemies([boss])
+        assert boss.boss_state == "descend"
+
+        boss.boss_timer = 1
+        update_enemies([boss])
+        assert boss.boss_state == "vulnerable"
+
+        boss.boss_timer = 1
+        update_enemies([boss])
+        assert boss.boss_state == "ascend"
+
+        boss.boss_timer = 1
+        update_enemies([boss])
+        assert boss.boss_state == "idle"
+
+    def test_idle_timer_decrements(self):
+        """Timer decrements each frame during idle."""
+        boss = _make_boss(state="idle", timer=50)
+        update_enemies([boss])
+        assert boss.boss_timer == 49
+
+    def test_dead_boss_not_updated(self):
+        """Dead boss does not update."""
+        boss = _make_boss(state="idle", timer=50)
+        boss.alive = False
+        update_enemies([boss])
+        assert boss.boss_timer == 50
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonMovement
+# ---------------------------------------------------------------------------
+
+class TestEggPistonMovement:
+    def test_idle_moves_right(self):
+        """Boss moves right during idle."""
+        boss = _make_boss(state="idle", timer=50)
+        boss.patrol_dir = 1
+        old_x = boss.x
+        update_enemies([boss])
+        assert boss.x == old_x + BOSS_IDLE_SPEED
+
+    def test_idle_moves_left(self):
+        """Boss moves left during idle."""
+        boss = _make_boss(state="idle", timer=50)
+        boss.patrol_dir = -1
+        old_x = boss.x
+        update_enemies([boss])
+        assert boss.x == old_x - BOSS_IDLE_SPEED
+
+    def test_idle_reverses_at_right_edge(self):
+        """Boss reverses at right arena boundary."""
+        boss = _make_boss(state="idle", timer=50)
+        boss.x = boss.boss_right_x - 0.1
+        boss.patrol_dir = 1
+        update_enemies([boss])
+        assert boss.patrol_dir == -1
+
+    def test_idle_reverses_at_left_edge(self):
+        """Boss reverses at left arena boundary."""
+        boss = _make_boss(state="idle", timer=50)
+        boss.x = boss.boss_left_x + 0.1
+        boss.patrol_dir = -1
+        update_enemies([boss])
+        assert boss.patrol_dir == 1
+
+    def test_idle_escalated_speed(self):
+        """After escalation, idle speed doubles."""
+        boss = _make_boss(state="idle", timer=50, escalated=True)
+        boss.patrol_dir = 1
+        old_x = boss.x
+        update_enemies([boss])
+        assert boss.x == old_x + BOSS_IDLE_SPEED_ESC
+
+    def test_idle_hovers_at_hover_y(self):
+        """During idle, boss stays at hover y position."""
+        boss = _make_boss(state="idle", timer=50)
+        update_enemies([boss])
+        assert boss.y == boss.boss_hover_y
+
+    def test_descend_moves_to_ground(self):
+        """During descend, boss interpolates from hover to ground."""
+        boss = _make_boss(state="descend", timer=BOSS_DESCEND_DURATION)
+        boss.y = boss.boss_hover_y
+        # Run full descent
+        for _ in range(BOSS_DESCEND_DURATION):
+            update_enemies([boss])
+        assert boss.y == boss.boss_ground_y
+        assert boss.boss_state == "vulnerable"
+
+    def test_ascend_moves_to_hover(self):
+        """During ascend, boss interpolates from ground to hover."""
+        boss = _make_boss(state="ascend", timer=BOSS_ASCEND_DURATION)
+        boss.y = boss.boss_ground_y
+        # Run full ascent
+        for _ in range(BOSS_ASCEND_DURATION):
+            update_enemies([boss])
+        assert boss.y == boss.boss_hover_y
+        assert boss.boss_state == "idle"
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonDamage
+# ---------------------------------------------------------------------------
+
+class TestEggPistonDamage:
+    def test_spindash_deals_damage_when_vulnerable(self):
+        """Spindash at threshold speed damages vulnerable boss."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable")
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.BOSS_HIT in events
+        assert boss.boss_hp == BOSS_HP - 1
+
+    def test_spindash_sets_hit_invulnerability(self):
+        """Boss becomes temporarily invulnerable after a hit."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable")
+
+        check_enemy_collision(p, [boss])
+
+        assert boss.boss_hit_timer == BOSS_HIT_INVULN
+
+    def test_hit_invulnerability_prevents_double_hit(self):
+        """Boss cannot be hit again while hit invulnerability is active."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable")
+        boss.boss_hit_timer = 10  # Already invulnerable
+
+        events = check_enemy_collision(p, [boss])
+
+        # Player bounces off instead of dealing damage
+        assert EnemyEvent.BOSS_HIT not in events
+        assert boss.boss_hp == BOSS_HP  # No damage
+
+    def test_normal_jump_no_damage(self):
+        """Regular jump from above bounces off armor, no damage."""
+        p = create_player(500.0, 490.0)
+        p.physics.y_vel = 2.0
+        p.physics.on_ground = False
+        p.state = PlayerState.JUMPING
+        boss = _make_boss(state="vulnerable")
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.BOUNCE in events
+        assert EnemyEvent.BOSS_HIT not in events
+        assert boss.boss_hp == BOSS_HP
+        assert p.physics.y_vel == ENEMY_BOUNCE_VELOCITY
+
+    def test_side_contact_damages_player_when_vulnerable(self):
+        """Side contact with vulnerable boss damages player."""
+        p = create_player(500.0, 500.0)
+        p.state = PlayerState.RUNNING
+        p.rings = 5
+        boss = _make_boss(state="vulnerable")
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.PLAYER_DAMAGED in events
+        assert p.state == PlayerState.HURT
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonEscalation
+# ---------------------------------------------------------------------------
+
+class TestEggPistonEscalation:
+    def test_escalation_at_threshold(self):
+        """Escalation triggers when HP drops to BOSS_ESCALATION_HP."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable", hp=BOSS_ESCALATION_HP + 1)
+
+        check_enemy_collision(p, [boss])
+
+        assert boss.boss_escalated is True
+        assert boss.boss_hp == BOSS_ESCALATION_HP
+
+    def test_no_escalation_above_threshold(self):
+        """No escalation when HP is still above threshold."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable", hp=BOSS_ESCALATION_HP + 2)
+
+        check_enemy_collision(p, [boss])
+
+        assert boss.boss_escalated is False
+        assert boss.boss_hp == BOSS_ESCALATION_HP + 1
+
+    def test_escalation_stays_set(self):
+        """Once escalated, boss stays escalated even as HP drops further."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable", hp=3, escalated=True)
+
+        check_enemy_collision(p, [boss])
+
+        assert boss.boss_escalated is True
+        assert boss.boss_hp == 2
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonDefeat
+# ---------------------------------------------------------------------------
+
+class TestEggPistonDefeat:
+    def test_defeat_at_zero_hp(self):
+        """Boss dies when HP reaches 0."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable", hp=1, escalated=True)
+
+        events = check_enemy_collision(p, [boss])
+
+        assert boss.alive is False
+        assert boss.boss_hp == 0
+        assert EnemyEvent.BOSS_HIT in events
+        assert EnemyEvent.BOSS_DEFEATED in events
+
+    def test_boss_defeated_event_order(self):
+        """BOSS_HIT comes before BOSS_DEFEATED in event list."""
+        p = create_player(500.0, 500.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        boss = _make_boss(state="vulnerable", hp=1, escalated=True)
+
+        events = check_enemy_collision(p, [boss])
+
+        assert events == [EnemyEvent.BOSS_HIT, EnemyEvent.BOSS_DEFEATED]
+
+
+# ---------------------------------------------------------------------------
+# TestEggPistonNonVulnerableDamage
+# ---------------------------------------------------------------------------
+
+class TestEggPistonNonVulnerableDamage:
+    def test_idle_contact_damages_player(self):
+        """Contact during idle state damages player."""
+        p = create_player(500.0, 420.0)  # At hover height
+        p.state = PlayerState.RUNNING
+        p.rings = 5
+        boss = _make_boss(state="idle")
+        boss.y = boss.boss_hover_y
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.PLAYER_DAMAGED in events
+
+    def test_descend_contact_damages_player(self):
+        """Contact during descend state damages player (crush)."""
+        p = create_player(500.0, 460.0)
+        p.state = PlayerState.RUNNING
+        p.rings = 5
+        boss = _make_boss(state="descend")
+        boss.y = 460.0  # Mid-descent
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.PLAYER_DAMAGED in events
+
+    def test_ascend_contact_damages_player(self):
+        """Contact during ascend state damages player (crush from below)."""
+        p = create_player(500.0, 490.0)
+        p.state = PlayerState.RUNNING
+        p.rings = 5
+        boss = _make_boss(state="ascend")
+        boss.y = 490.0
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.PLAYER_DAMAGED in events
+
+    def test_invulnerable_player_safe_in_non_vulnerable_state(self):
+        """Invulnerable player not damaged by non-vulnerable boss."""
+        p = create_player(500.0, 420.0)
+        p.invulnerability_timer = 60
+        p.state = PlayerState.RUNNING
+        boss = _make_boss(state="idle")
+        boss.y = boss.boss_hover_y
+
+        events = check_enemy_collision(p, [boss])
+
+        assert events is None or EnemyEvent.PLAYER_DAMAGED not in (events or [])
+
+    def test_spindash_on_idle_boss_still_damages_player(self):
+        """Spindash during non-vulnerable state damages player, not boss."""
+        p = create_player(500.0, 420.0)
+        p.physics.is_rolling = True
+        p.physics.ground_speed = SPINDASH_KILL_THRESHOLD
+        p.state = PlayerState.ROLLING
+        p.rings = 5
+        boss = _make_boss(state="idle")
+        boss.y = boss.boss_hover_y
+
+        events = check_enemy_collision(p, [boss])
+
+        assert EnemyEvent.PLAYER_DAMAGED in events
+        assert boss.boss_hp == BOSS_HP  # No damage to boss
