@@ -71,6 +71,7 @@ class InputState:
     jump_pressed: bool = False
     jump_held: bool = False
     down_held: bool = False
+    up_held: bool = False
 
 
 @dataclass

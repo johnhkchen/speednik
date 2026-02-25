@@ -1,14 +1,13 @@
-"""speednik/main.py — Entry point with demo mode for T-001-04.
+"""speednik/main.py — Entry point with demo mode for T-001-05.
 
 Builds a hardcoded test level (flat ground + slope + loop), creates a player,
-and runs the game loop with debug visualization.
+and runs the game loop with debug visualization and Sonic 2 camera.
 """
-
-import math
 
 import pyxel
 
 from speednik.audio import init_audio, update_audio
+from speednik.camera import camera_update, create_camera
 from speednik.constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
@@ -82,6 +81,7 @@ def _read_input() -> InputState:
         jump_pressed=pyxel.btnp(pyxel.KEY_Z),
         jump_held=pyxel.btn(pyxel.KEY_Z),
         down_held=pyxel.btn(pyxel.KEY_DOWN),
+        up_held=pyxel.btn(pyxel.KEY_UP),
     )
 
 
@@ -96,13 +96,19 @@ class App:
 
         self.tiles, self.tile_lookup = _build_demo_level()
 
+        # Compute level dimensions from tile data
+        max_tx = max(tx for tx, _ in self.tiles) + 1
+        max_ty = max(ty for _, ty in self.tiles) + 1
+        level_w = max_tx * TILE_SIZE
+        level_h = max_ty * TILE_SIZE
+
         # Player starts on flat ground at tile x=4
         start_x = 4 * TILE_SIZE + TILE_SIZE // 2  # center of tile 4
         start_y = 12 * TILE_SIZE - STANDING_HEIGHT_RADIUS  # feet at top of tile row 12
         self.player = create_player(float(start_x), float(start_y))
 
-        # Camera offset for scrolling
-        self.cam_x = 0.0
+        # Sonic 2 camera system
+        self.camera = create_camera(level_w, level_h, float(start_x), float(start_y))
 
         pyxel.run(self.update, self.draw)
 
@@ -114,45 +120,46 @@ class App:
         player_update(self.player, inp, self.tile_lookup)
         update_audio()
 
-        # Simple camera: follow player horizontally
-        target_cam = self.player.physics.x - SCREEN_WIDTH // 2
-        self.cam_x += (target_cam - self.cam_x) * 0.1
-        if self.cam_x < 0:
-            self.cam_x = 0
+        # Update camera after player (needs final position)
+        camera_update(self.camera, self.player, inp)
 
     def draw(self):
         pyxel.cls(12)  # Light blue sky
 
-        cam_x = int(self.cam_x)
+        # Set viewport offset for world drawing
+        pyxel.camera(int(self.camera.x), int(self.camera.y))
 
-        # Draw tiles
+        # Draw tiles (in world coordinates)
+        cam_x = int(self.camera.x)
+        cam_y = int(self.camera.y)
         for (tx, ty), tile in self.tiles.items():
-            screen_x = tx * TILE_SIZE - cam_x
-            screen_y = ty * TILE_SIZE
-            if screen_x < -TILE_SIZE or screen_x > SCREEN_WIDTH:
+            world_x = tx * TILE_SIZE
+            world_y = ty * TILE_SIZE
+            # Cull tiles outside viewport
+            if world_x + TILE_SIZE < cam_x or world_x > cam_x + SCREEN_WIDTH:
                 continue
-            # Draw tile based on height array
+            if world_y + TILE_SIZE < cam_y or world_y > cam_y + SCREEN_HEIGHT:
+                continue
             for col in range(TILE_SIZE):
                 h = tile.height_array[col]
                 if h > 0:
-                    x = screen_x + col
-                    y_top = screen_y + (TILE_SIZE - h)
-                    pyxel.line(x, y_top, x, screen_y + TILE_SIZE - 1, 3)  # Green
+                    x = world_x + col
+                    y_top = world_y + (TILE_SIZE - h)
+                    pyxel.line(x, y_top, x, world_y + TILE_SIZE - 1, 3)  # Green
 
-        # Draw player as colored rectangle
+        # Draw player as colored rectangle (world coordinates)
         px, py, pw, ph = get_player_rect(self.player)
-        draw_x = int(px) - cam_x
-        draw_y = int(py)
-        color = 8 if self.player.state == PlayerState.HURT else 4  # Red if hurt, blue normally
+        color = 8 if self.player.state == PlayerState.HURT else 4
         if self.player.invulnerability_timer > 0 and pyxel.frame_count % 4 < 2:
-            color = 0  # Flash transparent during invulnerability
-        pyxel.rect(draw_x, draw_y, pw, ph, color)
+            color = 0
+        pyxel.rect(int(px), int(py), pw, ph, color)
 
-        # Draw scattered rings
+        # Draw scattered rings (world coordinates)
         for ring in self.player.scattered_rings:
-            rx = int(ring.x) - cam_x
-            ry = int(ring.y)
-            pyxel.circ(rx, ry, 2, 10)  # Yellow
+            pyxel.circ(int(ring.x), int(ring.y), 2, 10)
+
+        # Reset camera for HUD (screen-relative)
+        pyxel.camera()
 
         # Debug HUD
         p = self.player.physics
@@ -164,7 +171,7 @@ class App:
         pyxel.text(4, 44, f"OnGnd: {p.on_ground}", 7)
 
         # Controls help
-        pyxel.text(4, SCREEN_HEIGHT - 10, "Arrows+Z:jump  Q:quit", 7)
+        pyxel.text(4, SCREEN_HEIGHT - 10, "Arrows+Z:jump  Up/Down:look  Q:quit", 7)
 
 
 if __name__ == "__main__":
