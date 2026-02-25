@@ -9,7 +9,11 @@ import pyxel
 from speednik import renderer
 from speednik.audio import (
     SFX_1UP,
+    SFX_BOSS_HIT,
     SFX_CHECKPOINT,
+    SFX_ENEMY_BOUNCE,
+    SFX_ENEMY_DESTROY,
+    SFX_HURT,
     SFX_LIQUID_RISING,
     SFX_RING,
     SFX_SPRING,
@@ -24,6 +28,12 @@ from speednik.constants import (
     SPRING_HITBOX_H,
     SPRING_HITBOX_W,
     STANDING_HEIGHT_RADIUS,
+)
+from speednik.enemies import (
+    EnemyEvent,
+    check_enemy_collision,
+    load_enemies,
+    update_enemies,
 )
 from speednik.objects import (
     CheckpointEvent,
@@ -151,6 +161,13 @@ class App:
         self.pipes = load_pipes([])
         self.liquid_zones = load_liquid_zones([])
 
+        # Demo enemies: a crab patrolling on flat ground
+        demo_enemy_entities = [
+            {"type": "enemy_crab", "x": 14 * TILE_SIZE, "y": 12 * TILE_SIZE - 7},
+            {"type": "enemy_buzzer", "x": 20 * TILE_SIZE, "y": 12 * TILE_SIZE - 40},
+        ]
+        self.enemies = load_enemies(demo_enemy_entities)
+
         # Sonic 2 camera system
         self.camera = create_camera(level_w, level_h, float(start_x), float(start_y))
 
@@ -196,6 +213,23 @@ class App:
         for event in liquid_events:
             if event == LiquidEvent.STARTED_RISING:
                 play_sfx(SFX_LIQUID_RISING)
+
+        # Enemy update and collision
+        update_enemies(self.enemies)
+        enemy_events = check_enemy_collision(self.player, self.enemies)
+        for event in enemy_events:
+            if event == EnemyEvent.DESTROYED:
+                play_sfx(SFX_ENEMY_DESTROY)
+                # Spawn particles at destroyed enemy position
+                for enemy in self.enemies:
+                    if not enemy.alive:
+                        renderer.spawn_destroy_particles(enemy.x, enemy.y)
+            elif event == EnemyEvent.BOUNCE:
+                play_sfx(SFX_ENEMY_BOUNCE)
+            elif event == EnemyEvent.PLAYER_DAMAGED:
+                play_sfx(SFX_HURT)
+            elif event == EnemyEvent.SHIELD_BREAK:
+                play_sfx(SFX_BOSS_HIT)
 
         # Spring cooldowns
         update_spring_cooldowns(self.springs)
@@ -258,6 +292,13 @@ class App:
                 for row in range(lh):
                     if (ly + row + pyxel.frame_count // 4) % 2 == 0:
                         pyxel.line(lx1, ly + row, lx2, ly + row, 10)  # Blue
+
+        # Enemies
+        for enemy in self.enemies:
+            if enemy.alive:
+                drawer = renderer._ENTITY_DRAWERS.get(enemy.enemy_type)
+                if drawer:
+                    drawer(int(enemy.x), int(enemy.y), pyxel.frame_count)
 
         renderer.draw_player(self.player, pyxel.frame_count)
         renderer.draw_scattered_rings(
