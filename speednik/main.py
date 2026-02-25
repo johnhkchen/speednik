@@ -9,7 +9,10 @@ import pyxel
 from speednik import renderer
 from speednik.audio import (
     SFX_1UP,
+    SFX_CHECKPOINT,
+    SFX_LIQUID_RISING,
     SFX_RING,
+    SFX_SPRING,
     init_audio,
     play_sfx,
     update_audio,
@@ -18,11 +21,30 @@ from speednik.camera import camera_update, create_camera
 from speednik.constants import (
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
+    SPRING_HITBOX_H,
+    SPRING_HITBOX_W,
     STANDING_HEIGHT_RADIUS,
 )
-from speednik.objects import Ring, RingEvent, check_ring_collection
+from speednik.objects import (
+    CheckpointEvent,
+    LiquidEvent,
+    PipeEvent,
+    Ring,
+    RingEvent,
+    SpringEvent,
+    check_checkpoint_collision,
+    check_ring_collection,
+    check_spring_collision,
+    load_checkpoints,
+    load_liquid_zones,
+    load_pipes,
+    load_springs,
+    update_liquid_zones,
+    update_pipe_travel,
+    update_spring_cooldowns,
+)
 from speednik.physics import InputState
-from speednik.player import create_player, player_update
+from speednik.player import PlayerState, create_player, get_player_rect, player_update
 from speednik.terrain import FULL, TILE_SIZE, Tile, TileLookup
 
 
@@ -123,6 +145,12 @@ class App:
             ry = float(12 * TILE_SIZE - 24)  # 24px above ground surface
             self.rings.append(Ring(x=rx, y=ry))
 
+        # Game objects (empty in demo mode — populated when loading real stages)
+        self.springs = load_springs([])
+        self.checkpoints = load_checkpoints([])
+        self.pipes = load_pipes([])
+        self.liquid_zones = load_liquid_zones([])
+
         # Sonic 2 camera system
         self.camera = create_camera(level_w, level_h, float(start_x), float(start_y))
 
@@ -136,12 +164,41 @@ class App:
         player_update(self.player, inp, self.tile_lookup)
 
         # Ring collection
-        events = check_ring_collection(self.player, self.rings)
-        for event in events:
+        ring_events = check_ring_collection(self.player, self.rings)
+        for event in ring_events:
             if event == RingEvent.COLLECTED:
                 play_sfx(SFX_RING)
             elif event == RingEvent.EXTRA_LIFE:
                 play_sfx(SFX_1UP)
+
+        # Spring collision
+        spring_events = check_spring_collision(self.player, self.springs)
+        for event in spring_events:
+            if event == SpringEvent.LAUNCHED:
+                play_sfx(SFX_SPRING)
+
+        # Checkpoint collision
+        cp_events = check_checkpoint_collision(self.player, self.checkpoints)
+        for event in cp_events:
+            if event == CheckpointEvent.ACTIVATED:
+                play_sfx(SFX_CHECKPOINT)
+
+        # Pipe travel
+        pipe_events = update_pipe_travel(self.player, self.pipes)
+        for event in pipe_events:
+            if event == PipeEvent.ENTERED:
+                pass  # Could add pipe entry SFX
+            elif event == PipeEvent.EXITED:
+                pass  # Could add pipe exit SFX
+
+        # Liquid zones
+        liquid_events = update_liquid_zones(self.player, self.liquid_zones)
+        for event in liquid_events:
+            if event == LiquidEvent.STARTED_RISING:
+                play_sfx(SFX_LIQUID_RISING)
+
+        # Spring cooldowns
+        update_spring_cooldowns(self.springs)
 
         update_audio()
 
@@ -162,6 +219,45 @@ class App:
         for ring in self.rings:
             if not ring.collected:
                 renderer._draw_ring(int(ring.x), int(ring.y), pyxel.frame_count)
+
+        # Springs
+        for spring in self.springs:
+            sx = int(spring.x - SPRING_HITBOX_W // 2)
+            sy = int(spring.y - SPRING_HITBOX_H // 2)
+            color = 8  # Red (palette slot 8)
+            if spring.cooldown > 0:
+                # Compressed visual
+                pyxel.rect(sx, sy + SPRING_HITBOX_H // 2, SPRING_HITBOX_W, SPRING_HITBOX_H // 2, color)
+            else:
+                pyxel.rect(sx, sy, SPRING_HITBOX_W, SPRING_HITBOX_H, color)
+
+        # Checkpoints
+        for cp in self.checkpoints:
+            color = 10 if cp.activated else 7  # Yellow if active, white if not
+            cx = int(cp.x)
+            cy = int(cp.y)
+            pyxel.line(cx, cy, cx, cy - 24, color)  # Post
+            pyxel.circ(cx, cy - 26, 3, color)  # Top
+
+        # Pipes (filled rectangles with directional indicators)
+        for pipe in self.pipes:
+            px1 = int(min(pipe.x, pipe.exit_x))
+            py1 = int(min(pipe.y, pipe.exit_y)) - 12
+            px2 = int(max(pipe.x, pipe.exit_x))
+            py2 = int(max(pipe.y, pipe.exit_y)) + 12
+            pyxel.rectb(px1, py1, px2 - px1, py2 - py1, 5)  # Teal outline
+
+        # Liquid zones
+        for zone in self.liquid_zones:
+            if zone.active and zone.current_y < zone.floor_y:
+                lx1 = int(zone.trigger_x)
+                lx2 = int(zone.exit_x)
+                ly = int(zone.current_y)
+                lh = int(zone.floor_y - zone.current_y)
+                # Semi-transparent effect via alternating lines
+                for row in range(lh):
+                    if (ly + row + pyxel.frame_count // 4) % 2 == 0:
+                        pyxel.line(lx1, ly + row, lx2, ly + row, 10)  # Blue
 
         renderer.draw_player(self.player, pyxel.frame_count)
         renderer.draw_scattered_rings(

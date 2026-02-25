@@ -17,6 +17,7 @@ from speednik.constants import (
     INVULNERABILITY_DURATION,
     MAX_SCATTER_RINGS,
     MIN_ROLL_SPEED,
+    RING_COLLECTION_RADIUS,
     ROLLING_HEIGHT_RADIUS,
     ROLLING_WIDTH_RADIUS,
     SCATTER_RING_LIFETIME,
@@ -81,6 +82,12 @@ class Player:
     anim_timer: int = 0
     anim_name: str = "idle"
     scattered_rings: list[ScatteredRing] = field(default_factory=list)
+    # Checkpoint respawn data
+    respawn_x: float = 0.0
+    respawn_y: float = 0.0
+    respawn_rings: int = 0
+    # Pipe travel state
+    in_pipe: bool = False
     # Track previous jump_held for release detection
     _prev_jump_held: bool = False
 
@@ -92,7 +99,7 @@ class Player:
 def create_player(x: float, y: float) -> Player:
     """Create a player at the given pixel position."""
     physics = PhysicsState(x=x, y=y, on_ground=True)
-    return Player(physics=physics)
+    return Player(physics=physics, respawn_x=x, respawn_y=y)
 
 
 # ---------------------------------------------------------------------------
@@ -102,6 +109,10 @@ def create_player(x: float, y: float) -> Player:
 def player_update(player: Player, inp: InputState, tile_lookup: TileLookup) -> None:
     """Full frame update: input → state machine → physics → collision → sync."""
     if player.state == PlayerState.DEAD:
+        return
+
+    # Pipe travel: skip normal physics — pipe system handles movement
+    if player.in_pipe:
         return
 
     # Pre-physics state machine (jump, roll, spindash transitions)
@@ -305,7 +316,7 @@ def _check_ring_collection(player: Player) -> None:
     for ring in player.scattered_rings:
         dx = ring.x - px
         dy = ring.y - py
-        if dx * dx + dy * dy < 16 * 16:  # 16px collection radius
+        if dx * dx + dy * dy < RING_COLLECTION_RADIUS * RING_COLLECTION_RADIUS:
             player.rings += 1
         else:
             still_alive.append(ring)
