@@ -12,6 +12,7 @@ from typing import Callable, Optional
 
 from speednik.constants import (
     ANGLE_STEPS,
+    FALL_SPEED_THRESHOLD,
     ROLLING_HEIGHT_RADIUS,
     ROLLING_WIDTH_RADIUS,
     STANDING_HEIGHT_RADIUS,
@@ -156,13 +157,18 @@ def _sensor_cast_down(
             # Extension: check tile below
             tile_below = tile_lookup(tile_x, tile_y + 1)
             if tile_below is not None and tile_below.solidity != NOT_SOLID and solidity_filter(tile_below.solidity):
-                height_below = tile_below.height_array[col]
-                if height_below > 0:
-                    # Surface is in the tile below
-                    surface_y = (tile_y + 1) * TILE_SIZE + (TILE_SIZE - height_below)
-                    dist = surface_y - sensor_y
-                    if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
+                # Don't extend through loop tiles into non-loop fill tiles.
+                # Loop tiles with h=0 at a column have their surface in a
+                # different tile row; extending finds fill structure beneath
+                # the loop, not an actual surface the player should snap to.
+                if not (tile.tile_type == SURFACE_LOOP and tile_below.tile_type != SURFACE_LOOP):
+                    height_below = tile_below.height_array[col]
+                    if height_below > 0:
+                        # Surface is in the tile below
+                        surface_y = (tile_y + 1) * TILE_SIZE + (TILE_SIZE - height_below)
+                        dist = surface_y - sensor_y
+                        if abs(dist) <= MAX_SENSOR_RANGE:
+                            return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
             # No surface found even with extension
             return SensorResult(found=False, distance=0.0, tile_angle=0)
         elif height == TILE_SIZE:
@@ -312,17 +318,24 @@ def _sensor_cast_up(
                 return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
     else:
-        # No solid tile — check tile above (extension)
+        # No solid tile — check extension (above) and regression (below)
         tile_above = tile_lookup(tile_x, tile_y - 1)
         if tile_above is not None and tile_above.solidity != NOT_SOLID and solidity_filter(tile_above.solidity):
             height_above = tile_above.height_array[col]
             if height_above > 0:
-                # For upward extension, the surface we hit is the bottom of the solid
-                # Solid in tile_above spans y: [ty*16 + 16 - h, (ty+1)*16)
                 solid_top_y = (tile_y - 1) * TILE_SIZE + (TILE_SIZE - height_above)
                 dist = sensor_y - solid_top_y
                 if abs(dist) <= MAX_SENSOR_RANGE:
                     return SensorResult(found=True, distance=dist, tile_angle=tile_above.angle, tile_type=tile_above.tile_type)
+        # Regression: sensor may have overshot below the surface (common in Q2 loops)
+        tile_below = tile_lookup(tile_x, tile_y + 1)
+        if tile_below is not None and tile_below.solidity != NOT_SOLID and solidity_filter(tile_below.solidity):
+            height_below = tile_below.height_array[col]
+            if height_below > 0:
+                solid_top_y = (tile_y + 1) * TILE_SIZE + (TILE_SIZE - height_below)
+                dist = sensor_y - solid_top_y
+                if abs(dist) <= MAX_SENSOR_RANGE:
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_below.angle, tile_type=tile_below.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -330,77 +343,98 @@ def _sensor_cast_up(
 # Horizontal sensor casts
 # ---------------------------------------------------------------------------
 
+def _find_left_edge(tile: "Tile", width_row: int) -> int:
+    """Find the leftmost solid column at the given row (0=bottom, 15=top).
+
+    Returns the column index (0-15) of the first solid pixel, or -1 if none.
+    A pixel at (col, row) is solid when height_array[col] > row.
+    """
+    for col in range(TILE_SIZE):
+        if tile.height_array[col] > width_row:
+            return col
+    return -1
+
+
+def _find_right_edge(tile: "Tile", width_row: int) -> int:
+    """Find the rightmost solid column at the given row (0=bottom, 15=top).
+
+    Returns the column index (0-15) of the last solid pixel, or -1 if none.
+    """
+    for col in range(TILE_SIZE - 1, -1, -1):
+        if tile.height_array[col] > width_row:
+            return col
+    return -1
+
+
 def _sensor_cast_right(
     sensor_x: float,
     sensor_y: float,
     tile_lookup: TileLookup,
     solidity_filter: Callable[[int], bool],
 ) -> SensorResult:
-    """Cast a sensor rightward from (sensor_x, sensor_y)."""
+    """Cast a sensor rightward from (sensor_x, sensor_y).
+
+    Finds the leftmost solid pixel at the sensor's row, scanning from left to
+    right.  This correctly handles non-convex tiles (e.g. loop surfaces) where
+    solid regions may not be anchored to the left edge of the tile.
+    """
     tile_y = int(sensor_y) // TILE_SIZE
     row = int(sensor_y) % TILE_SIZE
-    # For width_array, row 0 = bottom of tile. Convert screen row.
-    # In screen coords, row within tile = int(sensor_y) % 16
-    # But width_array is indexed from bottom (row 0 = bottom).
-    # Screen row 0 in tile = tile_y * 16, which is the TOP of the tile.
-    # Bottom of tile = row 15 in screen space.
-    # width_array[0] = bottom row, width_array[15] = top row.
-    # So we need: width_row = TILE_SIZE - 1 - row
+    # Convert screen row (0=top) to height-array row (0=bottom).
     width_row = TILE_SIZE - 1 - row
 
     tile_x = int(sensor_x) // TILE_SIZE
     tile = tile_lookup(tile_x, tile_y)
 
     if tile is not None and tile.solidity != NOT_SOLID and solidity_filter(tile.solidity):
-        wa = tile.width_array()
-        width = wa[width_row]
-        if width == 0:
-            # Extension: check tile to the right
+        left_edge = _find_left_edge(tile, width_row)
+        if left_edge < 0:
+            # No solid at this row — extension: check tile to the right
             tile_right = tile_lookup(tile_x + 1, tile_y)
             if tile_right is not None and tile_right.solidity != NOT_SOLID and solidity_filter(tile_right.solidity):
-                wa_right = tile_right.width_array()
-                width_right = wa_right[width_row]
-                if width_right > 0:
-                    # Surface is left edge of solid in right tile
-                    surface_x = (tile_x + 1) * TILE_SIZE + (TILE_SIZE - width_right)
+                le_right = _find_left_edge(tile_right, width_row)
+                if le_right >= 0:
+                    surface_x = (tile_x + 1) * TILE_SIZE + le_right
                     dist = surface_x - sensor_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
                         return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
-        elif width == TILE_SIZE:
-            # Regression: check tile to the left
+        else:
+            surface_x = tile_x * TILE_SIZE + left_edge
+            dist = surface_x - sensor_x
+            if dist < -MAX_SENSOR_RANGE:
+                return SensorResult(found=False, distance=0.0, tile_angle=0)
+            if dist <= MAX_SENSOR_RANGE:
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
+            # Surface is far to the left within this tile; regression: check tile to the left
             tile_left = tile_lookup(tile_x - 1, tile_y)
             if tile_left is not None and tile_left.solidity != NOT_SOLID and solidity_filter(tile_left.solidity):
-                wa_left = tile_left.width_array()
-                width_left = wa_left[width_row]
-                if width_left < TILE_SIZE:
-                    surface_x = (tile_x - 1) * TILE_SIZE + (TILE_SIZE - width_left)
-                    dist = surface_x - sensor_x
-                    if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
-            surface_x = tile_x * TILE_SIZE
-            dist = surface_x - sensor_x
-            if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
-            return SensorResult(found=False, distance=0.0, tile_angle=0)
-        else:
-            # Width from the left edge of the tile
-            surface_x = tile_x * TILE_SIZE + (TILE_SIZE - width)
-            dist = surface_x - sensor_x
-            if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
-            return SensorResult(found=False, distance=0.0, tile_angle=0)
+                le_left = _find_left_edge(tile_left, width_row)
+                if le_left >= 0:
+                    surface_x_left = (tile_x - 1) * TILE_SIZE + le_left
+                    dist_left = surface_x_left - sensor_x
+                    if abs(dist_left) <= MAX_SENSOR_RANGE:
+                        return SensorResult(found=True, distance=dist_left, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
+            return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
     else:
-        # Check tile to the right
+        # No solid tile at sensor — check extension (right) and regression (left)
         tile_right = tile_lookup(tile_x + 1, tile_y)
         if tile_right is not None and tile_right.solidity != NOT_SOLID and solidity_filter(tile_right.solidity):
-            wa_right = tile_right.width_array()
-            width_right = wa_right[width_row]
-            if width_right > 0:
-                surface_x = (tile_x + 1) * TILE_SIZE + (TILE_SIZE - width_right)
+            le_right = _find_left_edge(tile_right, width_row)
+            if le_right >= 0:
+                surface_x = (tile_x + 1) * TILE_SIZE + le_right
                 dist = surface_x - sensor_x
                 if abs(dist) <= MAX_SENSOR_RANGE:
                     return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
+        # Regression: sensor tip may have overshot the surface (common in Q1 loops)
+        tile_left = tile_lookup(tile_x - 1, tile_y)
+        if tile_left is not None and tile_left.solidity != NOT_SOLID and solidity_filter(tile_left.solidity):
+            le_left = _find_left_edge(tile_left, width_row)
+            if le_left >= 0:
+                surface_x = (tile_x - 1) * TILE_SIZE + le_left
+                dist = surface_x - sensor_x
+                if abs(dist) <= MAX_SENSOR_RANGE:
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -410,7 +444,11 @@ def _sensor_cast_left(
     tile_lookup: TileLookup,
     solidity_filter: Callable[[int], bool],
 ) -> SensorResult:
-    """Cast a sensor leftward from (sensor_x, sensor_y)."""
+    """Cast a sensor leftward from (sensor_x, sensor_y).
+
+    Finds the rightmost solid pixel at the sensor's row, scanning from right to
+    left.  Correctly handles non-convex tiles (e.g. loop surfaces).
+    """
     tile_y = int(sensor_y) // TILE_SIZE
     row = int(sensor_y) % TILE_SIZE
     width_row = TILE_SIZE - 1 - row
@@ -419,55 +457,55 @@ def _sensor_cast_left(
     tile = tile_lookup(tile_x, tile_y)
 
     if tile is not None and tile.solidity != NOT_SOLID and solidity_filter(tile.solidity):
-        wa = tile.width_array()
-        width = wa[width_row]
-        if width == 0:
-            # Extension: check tile to the left
+        right_edge = _find_right_edge(tile, width_row)
+        if right_edge < 0:
+            # No solid at this row — extension: check tile to the left
             tile_left = tile_lookup(tile_x - 1, tile_y)
             if tile_left is not None and tile_left.solidity != NOT_SOLID and solidity_filter(tile_left.solidity):
-                wa_left = tile_left.width_array()
-                width_left = wa_left[width_row]
-                if width_left > 0:
-                    surface_x = (tile_x - 1) * TILE_SIZE + width_left
+                re_left = _find_right_edge(tile_left, width_row)
+                if re_left >= 0:
+                    surface_x = (tile_x - 1) * TILE_SIZE + re_left + 1
                     dist = sensor_x - surface_x
                     if abs(dist) <= MAX_SENSOR_RANGE:
                         return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
             return SensorResult(found=False, distance=0.0, tile_angle=0)
-        elif width == TILE_SIZE:
-            # Regression: check tile to the right
+        else:
+            # Right edge of solid = pixel just past the rightmost solid column
+            surface_x = tile_x * TILE_SIZE + right_edge + 1
+            dist = sensor_x - surface_x
+            if dist < -MAX_SENSOR_RANGE:
+                return SensorResult(found=False, distance=0.0, tile_angle=0)
+            if dist <= MAX_SENSOR_RANGE:
+                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
+            # Surface is far to the right; regression: check tile to the right
             tile_right = tile_lookup(tile_x + 1, tile_y)
             if tile_right is not None and tile_right.solidity != NOT_SOLID and solidity_filter(tile_right.solidity):
-                wa_right = tile_right.width_array()
-                width_right = wa_right[width_row]
-                if width_right < TILE_SIZE:
-                    surface_x = (tile_x + 1) * TILE_SIZE + width_right
-                    dist = sensor_x - surface_x
-                    if abs(dist) <= MAX_SENSOR_RANGE:
-                        return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
-            surface_x = (tile_x + 1) * TILE_SIZE
-            dist = sensor_x - surface_x
-            if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
-            return SensorResult(found=False, distance=0.0, tile_angle=0)
-        else:
-            # Width from left: solid occupies columns 0..width-1
-            # Right edge of solid = tile_x * TILE_SIZE + width
-            surface_x = tile_x * TILE_SIZE + width
-            dist = sensor_x - surface_x
-            if abs(dist) <= MAX_SENSOR_RANGE:
-                return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
-            return SensorResult(found=False, distance=0.0, tile_angle=0)
+                re_right = _find_right_edge(tile_right, width_row)
+                if re_right >= 0:
+                    surface_x_right = (tile_x + 1) * TILE_SIZE + re_right + 1
+                    dist_right = sensor_x - surface_x_right
+                    if abs(dist_right) <= MAX_SENSOR_RANGE:
+                        return SensorResult(found=True, distance=dist_right, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
+            return SensorResult(found=True, distance=dist, tile_angle=tile.angle, tile_type=tile.tile_type)
     else:
-        # Check tile to the left
+        # No solid tile at sensor — check extension (left) and regression (right)
         tile_left = tile_lookup(tile_x - 1, tile_y)
         if tile_left is not None and tile_left.solidity != NOT_SOLID and solidity_filter(tile_left.solidity):
-            wa_left = tile_left.width_array()
-            width_left = wa_left[width_row]
-            if width_left > 0:
-                surface_x = (tile_x - 1) * TILE_SIZE + width_left
+            re_left = _find_right_edge(tile_left, width_row)
+            if re_left >= 0:
+                surface_x = (tile_x - 1) * TILE_SIZE + re_left + 1
                 dist = sensor_x - surface_x
                 if abs(dist) <= MAX_SENSOR_RANGE:
                     return SensorResult(found=True, distance=dist, tile_angle=tile_left.angle, tile_type=tile_left.tile_type)
+        # Regression: sensor tip may have overshot the surface (common in Q3 loops)
+        tile_right = tile_lookup(tile_x + 1, tile_y)
+        if tile_right is not None and tile_right.solidity != NOT_SOLID and solidity_filter(tile_right.solidity):
+            re_right = _find_right_edge(tile_right, width_row)
+            if re_right >= 0:
+                surface_x = (tile_x + 1) * TILE_SIZE + re_right + 1
+                dist = sensor_x - surface_x
+                if abs(dist) <= MAX_SENSOR_RANGE:
+                    return SensorResult(found=True, distance=dist, tile_angle=tile_right.angle, tile_type=tile_right.tile_type)
         return SensorResult(found=False, distance=0.0, tile_angle=0)
 
 
@@ -686,6 +724,87 @@ def find_wall_push(
 _GROUND_SNAP_DISTANCE = 14.0
 # Air landing threshold: sensor must detect surface within this distance
 _AIR_LAND_DISTANCE = 16.0
+# Max tiles to scan in each direction for solid ejection
+_EJECT_SCAN_TILES = 3
+
+
+def _is_inside_solid(state: PhysicsState, tile_lookup: TileLookup) -> bool:
+    """Check if the player center is inside a FULL solid tile.
+
+    Mirrors the logic in invariants.py ``_check_inside_solid`` for a single point.
+    SURFACE_LOOP tiles are excluded. Tiles directly below SURFACE_LOOP tiles
+    (fill tiles under loop structures) are also excluded to prevent false
+    ejections during loop exit quadrant transitions.
+    """
+    tx = int(state.x) // TILE_SIZE
+    ty = int(state.y) // TILE_SIZE
+    col = int(state.x) % TILE_SIZE
+    tile = tile_lookup(tx, ty)
+    if tile is None or tile.solidity != FULL or tile.tile_type == SURFACE_LOOP:
+        return False
+    # Also skip if the tile above is a SURFACE_LOOP tile (fill under loop)
+    tile_above = tile_lookup(tx, ty - 1)
+    if tile_above is not None and tile_above.tile_type == SURFACE_LOOP:
+        return False
+    height = tile.height_array[col]
+    if height == 0:
+        return False
+    solid_top = (ty + 1) * TILE_SIZE - height
+    return state.y >= solid_top
+
+
+def _eject_from_solid(state: PhysicsState, tile_lookup: TileLookup) -> None:
+    """Move the player to the nearest non-solid position.
+
+    Search priority: upward, then left, then right.
+    On ejection, forces airborne state with zero velocity.
+    """
+    tx = int(state.x) // TILE_SIZE
+    ty = int(state.y) // TILE_SIZE
+    col = int(state.x) % TILE_SIZE
+
+    # --- Upward scan ---
+    for dy in range(1, _EJECT_SCAN_TILES + 1):
+        check_ty = ty - dy
+        tile = tile_lookup(tx, check_ty)
+        if tile is None or tile.solidity != FULL:
+            # Free space — place just below this free tile's bottom edge
+            state.y = float((check_ty + 1) * TILE_SIZE - 1)
+            _reset_to_airborne(state)
+            return
+        h = tile.height_array[col]
+        if h < TILE_SIZE:
+            # Partial fill — place just above the solid surface
+            solid_top = (check_ty + 1) * TILE_SIZE - h
+            state.y = float(solid_top - 1)
+            _reset_to_airborne(state)
+            return
+
+    # --- Horizontal scan (left then right) ---
+    for dx in range(1, _EJECT_SCAN_TILES + 1):
+        tile_l = tile_lookup(tx - dx, ty)
+        if tile_l is None or tile_l.solidity != FULL:
+            state.x = float((tx - dx + 1) * TILE_SIZE - 1)
+            _reset_to_airborne(state)
+            return
+        tile_r = tile_lookup(tx + dx, ty)
+        if tile_r is None or tile_r.solidity != FULL:
+            state.x = float((tx + dx) * TILE_SIZE)
+            _reset_to_airborne(state)
+            return
+
+    # --- Fallback: force push upward ---
+    state.y -= float(TILE_SIZE)
+    _reset_to_airborne(state)
+
+
+def _reset_to_airborne(state: PhysicsState) -> None:
+    """Force airborne state with zero velocity after ejection."""
+    state.on_ground = False
+    state.angle = 0
+    state.x_vel = 0.0
+    state.y_vel = 0.0
+    state.ground_speed = 0.0
 
 
 def resolve_collision(state: PhysicsState, tile_lookup: TileLookup) -> None:
@@ -702,6 +821,7 @@ def resolve_collision(state: PhysicsState, tile_lookup: TileLookup) -> None:
         if floor_result.found and abs(floor_result.distance) <= _GROUND_SNAP_DISTANCE:
             # Snap to surface
             _snap_to_floor(state, floor_result, quadrant)
+            state.adhesion_miss_count = 0
             # Two-pass: if snapping changed the active quadrant, re-run the floor
             # sensor immediately with the new quadrant so the position is fully
             # corrected this frame instead of one frame later.
@@ -711,9 +831,23 @@ def resolve_collision(state: PhysicsState, tile_lookup: TileLookup) -> None:
                 if floor_result2.found and abs(floor_result2.distance) <= _GROUND_SNAP_DISTANCE:
                     _snap_to_floor(state, floor_result2, new_quadrant)
         else:
-            # No floor — detach
-            state.on_ground = False
-            state.angle = 0
+            # No floor within normal snap range.
+            # Speed-based adhesion (Sonic 2 §2.3): at high speed on steep
+            # surfaces (quadrants 1-3), the player stays attached through
+            # brief sensor gaps at quadrant transitions (e.g. Q1→Q2 inside
+            # loops).  Allow up to 2 consecutive frames of sensor miss,
+            # then force detachment to prevent infinite orbiting.
+            if (
+                quadrant != 0
+                and abs(state.ground_speed) >= FALL_SPEED_THRESHOLD
+                and not floor_result.found
+                and state.adhesion_miss_count < 2
+            ):
+                state.adhesion_miss_count += 1
+            else:
+                state.on_ground = False
+                state.angle = 0
+                state.adhesion_miss_count = 0
     else:
         # Airborne: check for landing
         if floor_result.found and state.y_vel >= 0:
@@ -768,6 +902,10 @@ def resolve_collision(state: PhysicsState, tile_lookup: TileLookup) -> None:
                 state.y += ceiling_result.distance
                 if state.y_vel > 0:
                     state.y_vel = 0.0
+
+    # --- Solid ejection pass (safety net) ---
+    if _is_inside_solid(state, tile_lookup):
+        _eject_from_solid(state, tile_lookup)
 
 
 def _snap_to_floor(state: PhysicsState, result: SensorResult, quadrant: int) -> None:

@@ -1,0 +1,18 @@
+name: hillside_complete
+description: Complete Hillside Rush from start to goal using spindash agent
+stage: hillside
+agent: spindash
+agent_params:
+  charge_frames: 3
+  redash_speed: 0.15
+max_frames: 3600
+success:
+  type: goal_reached
+failure:
+  type: player_dead
+metrics:
+  - completion_time
+  - max_x
+  - rings_collected
+  - death_count
+  - velocity_profile

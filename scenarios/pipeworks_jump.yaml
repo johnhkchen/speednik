@@ -1,0 +1,14 @@
+name: pipeworks_jump
+description: Complete Pipeworks stage using jump-runner agent
+stage: pipeworks
+agent: jump_runner
+max_frames: 3600
+success:
+  type: goal_reached
+failure:
+  type: player_dead
+metrics:
+  - completion_time
+  - max_x
+  - rings_collected
+  - death_count

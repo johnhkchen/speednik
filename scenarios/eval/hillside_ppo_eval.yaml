@@ -1,0 +1,17 @@
+name: hillside_ppo_eval
+description: Evaluate trained PPO policy on Hillside Rush
+stage: hillside
+agent: ppo
+agent_params:
+  model_path: models/ppo_hillside_latest.pt
+max_frames: 3600
+success:
+  type: goal_reached
+failure:
+  type: player_dead
+metrics:
+  - completion_time
+  - max_x
+  - rings_collected
+  - total_reward
+  - average_speed

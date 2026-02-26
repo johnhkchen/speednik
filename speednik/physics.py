@@ -89,6 +89,7 @@ class PhysicsState:
     spinrev: float = 0.0
     is_charging_spindash: bool = False
     slip_timer: int = 0
+    adhesion_miss_count: int = 0  # consecutive frames of found=False adhesion
 
 
 # ---------------------------------------------------------------------------

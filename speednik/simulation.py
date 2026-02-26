@@ -8,8 +8,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from speednik.constants import BOSS_SPAWN_X, BOSS_SPAWN_Y
-from speednik.enemies import Enemy, EnemyEvent, check_enemy_collision, load_enemies, update_enemies
+from speednik.constants import BOSS_SPAWN_X, BOSS_SPAWN_Y, PIT_DEATH_MARGIN
+from speednik.enemies import (
+    Enemy,
+    EnemyEvent,
+    check_enemy_collision,
+    load_enemies,
+    update_enemies,
+)
 from speednik.level import load_stage
 from speednik.objects import (
     Checkpoint,
@@ -170,3 +176,124 @@ def create_sim(stage_name: str) -> SimState:
         level_width=stage.level_width,
         level_height=stage.level_height,
     )
+
+
+def create_sim_from_lookup(
+    tile_lookup: TileLookup,
+    start_x: float,
+    start_y: float,
+    *,
+    level_width: int = 99999,
+    level_height: int = 99999,
+) -> SimState:
+    """Create a minimal SimState from a tile lookup (for synthetic tests).
+
+    No entities, rings, springs, etc. — just the player and tile data.
+    """
+    player = create_player(start_x, start_y)
+    return SimState(
+        player=player,
+        tile_lookup=tile_lookup,
+        rings=[],
+        springs=[],
+        checkpoints=[],
+        pipes=[],
+        liquid_zones=[],
+        enemies=[],
+        goal_x=99999.0,
+        goal_y=0.0,
+        level_width=level_width,
+        level_height=level_height,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Step
+# ---------------------------------------------------------------------------
+
+def sim_step(sim: SimState, inp: InputState) -> list[Event]:
+    """Advance the simulation by one frame.
+
+    Returns a list of events that occurred during this frame.
+    """
+    events: list[Event] = []
+
+    if sim.player_dead:
+        return events
+
+    # Player update (physics + state machine)
+    player_update(sim.player, inp, sim.tile_lookup)
+
+    p = sim.player.physics
+
+    # --- World boundary enforcement ---
+    # Left boundary: clamp to x=0
+    if p.x < 0:
+        p.x = 0.0
+        if p.x_vel < 0:
+            p.x_vel = 0.0
+        if p.ground_speed < 0:
+            p.ground_speed = 0.0
+
+    # Right boundary: clamp to level_width
+    if p.x > sim.level_width:
+        p.x = float(sim.level_width)
+        if p.x_vel > 0:
+            p.x_vel = 0.0
+        if p.ground_speed > 0:
+            p.ground_speed = 0.0
+
+    # Pit death: kill player below level_height + margin
+    if p.y > sim.level_height + PIT_DEATH_MARGIN:
+        if sim.player.state != PlayerState.DEAD:
+            sim.player.state = PlayerState.DEAD
+            sim.player.physics.on_ground = False
+            sim.deaths += 1
+            events.append(DeathEvent())
+
+    # Track progress
+    sim.max_x_reached = max(sim.max_x_reached, p.x)
+
+    # Ring collection
+    for ring_evt in check_ring_collection(sim.player, sim.rings):
+        if isinstance(ring_evt, ObjRingEvent):
+            sim.rings_collected += 1
+            events.append(RingCollectedEvent())
+
+    # Spring collision
+    for spring_evt in check_spring_collision(sim.player, sim.springs):
+        if isinstance(spring_evt, ObjSpringEvent):
+            events.append(SpringEvent())
+
+    # Checkpoint collision
+    for cp_evt in check_checkpoint_collision(sim.player, sim.checkpoints):
+        if isinstance(cp_evt, ObjCheckpointEvent):
+            events.append(CheckpointEvent())
+
+    # Pipe travel
+    update_pipe_travel(sim.player, sim.pipes)
+
+    # Liquid zones
+    liq_events = update_liquid_zones(sim.player, sim.liquid_zones)
+    for liq_evt in liq_events:
+        if isinstance(liq_evt, ObjLiquidEvent):
+            pass  # Liquid events don't map to sim events yet
+
+    # Spring cooldowns
+    update_spring_cooldowns(sim.springs)
+
+    # Enemy updates
+    update_enemies(sim.enemies)
+    enemy_events = check_enemy_collision(sim.player, sim.enemies)
+    for enemy_evt in enemy_events:
+        if enemy_evt == EnemyEvent.PLAYER_DAMAGED:
+            events.append(DamageEvent())
+
+    # Goal check
+    goal_evt = check_goal_collision(sim.player, sim.goal_x, sim.goal_y)
+    if isinstance(goal_evt, ObjGoalEvent):
+        sim.goal_reached = True
+        events.append(GoalReachedEvent())
+
+    sim.frame += 1
+    return events

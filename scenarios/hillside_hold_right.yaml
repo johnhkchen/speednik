@@ -1,0 +1,13 @@
+name: hillside_hold_right
+description: Attempt Hillside Rush with hold-right agent (baseline, may fail)
+stage: hillside
+agent: hold_right
+max_frames: 3600
+success:
+  type: goal_reached
+failure:
+  type: player_dead
+metrics:
+  - completion_time
+  - max_x
+  - death_count

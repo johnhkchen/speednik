@@ -45,6 +45,9 @@ SLIP_DURATION = 30
 # 46° in byte angle: 46 * 256 / 360 ≈ 32.7 → 33
 SLIP_ANGLE_THRESHOLD = 33
 
+# Ground adhesion (§2.3) — min |ground_speed| to stay attached on steep surfaces
+FALL_SPEED_THRESHOLD = 2.5
+
 # Player damage (§8)
 INVULNERABILITY_DURATION = 120  # 2 seconds at 60fps
 MAX_SCATTER_RINGS = 32
@@ -108,6 +111,7 @@ BOSS_ARENA_HALF_W = 128           # ±128px from spawn for patrol bounds
 # Goal / Game state (§1, §8)
 GOAL_ACTIVATION_RADIUS = 24
 DEATH_DELAY_FRAMES = 120        # 2 seconds at 60fps
+PIT_DEATH_MARGIN = 32           # pixels below level_height before pit death
 RESULTS_DURATION = 300           # 5 seconds at 60fps
 GAMEOVER_DELAY = 360             # 6 seconds — jingle + pause
 BOSS_ARENA_START_X = 4000       # x threshold for boss music in Stage 3

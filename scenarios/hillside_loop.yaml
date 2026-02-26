@@ -1,0 +1,21 @@
+name: hillside_loop
+description: Navigate past the hillside loop section using hold-right agent
+stage: hillside
+agent: hold_right
+max_frames: 1800
+start_override:
+  x: 1200
+  y: 610
+success:
+  type: position_x_gte
+  value: 2400
+failure:
+  type: any
+  conditions:
+    - type: player_dead
+    - type: stuck
+      tolerance: 2.0
+      window: 120
+metrics:
+  - max_x
+  - completion_time
