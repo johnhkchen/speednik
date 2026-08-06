@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(du:*)",
+      "Bash(unzip:*)",
+      "Bash(lisa status:*)",
+      "Bash(uv run:*)",
+      "Bash(grep:*)",
+      "Bash(do echo:*)",
+      "Bash(python3:*)"
+    ]
+  }
+}
