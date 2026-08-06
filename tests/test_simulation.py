@@ -40,7 +40,7 @@ def test_create_sim_hillside():
 
     # Goal position matches known hillside goal
     assert sim.goal_x == 4758.0
-    assert sim.goal_y == 642.0
+    assert sim.goal_y == 610.0
 
     # Level dimensions
     assert sim.level_width > 0

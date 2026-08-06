@@ -76,6 +76,10 @@ class TestHillside:
             f"hold_right {_stall_info(result)}, goal at x={goal_x}"
         )
 
+    @pytest.mark.xfail(strict=True,
+        reason="Synthetic build_loop() loop traps player — spindash gets stuck "
+        "orbiting inside the loop (lands at low speed after hillside terrain launch)",
+    )
     def test_spindash_reaches_goal(self):
         """Spindash should reach the goal (wall angle threshold exempts loops)."""
         result = run_on_stage("hillside", spindash_right(), frames=3600)

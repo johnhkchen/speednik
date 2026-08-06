@@ -1,0 +1,34 @@
+<html><head><style>body { background: #222; color: #eee; font-family: monospace; }.grid { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 20px; }.grid img { image-rendering: pixelated; width: 64px; height: 64px; border: 1px solid #444; background: #333; }#anim { image-rendering: pixelated; width: 128px; height: 128px; border: 2px solid #fff; background: #333; }</style></head><body><h2>Animation Preview</h2><img id='anim' src=''><br><br><button onclick='play()'>Play</button> <button onclick='pause()'>Pause</button> Speed (ms): <input type='range' id='speed' min='20' max='300' value='100' onchange='updateSpeed()'> | Frame: <span id='framenum'>0</span><h2>Individual Frames</h2><div class='grid'><div><img src='frame_00.png' title='frame_00.png' onclick='setFrame(0)'><br>frame_00.png</div><div><img src='frame_01.png' title='frame_01.png' onclick='setFrame(1)'><br>frame_01.png</div><div><img src='frame_02.png' title='frame_02.png' onclick='setFrame(2)'><br>frame_02.png</div><div><img src='frame_03.png' title='frame_03.png' onclick='setFrame(3)'><br>frame_03.png</div><div><img src='frame_04.png' title='frame_04.png' onclick='setFrame(4)'><br>frame_04.png</div><div><img src='frame_05.png' title='frame_05.png' onclick='setFrame(5)'><br>frame_05.png</div><div><img src='frame_06.png' title='frame_06.png' onclick='setFrame(6)'><br>frame_06.png</div><div><img src='frame_07.png' title='frame_07.png' onclick='setFrame(7)'><br>frame_07.png</div><div><img src='frame_08.png' title='frame_08.png' onclick='setFrame(8)'><br>frame_08.png</div><div><img src='frame_09.png' title='frame_09.png' onclick='setFrame(9)'><br>frame_09.png</div><div><img src='frame_10.png' title='frame_10.png' onclick='setFrame(10)'><br>frame_10.png</div><div><img src='frame_11.png' title='frame_11.png' onclick='setFrame(11)'><br>frame_11.png</div><div><img src='frame_12.png' title='frame_12.png' onclick='setFrame(12)'><br>frame_12.png</div><div><img src='frame_13.png' title='frame_13.png' onclick='setFrame(13)'><br>frame_13.png</div><div><img src='frame_14.png' title='frame_14.png' onclick='setFrame(14)'><br>frame_14.png</div><div><img src='frame_15.png' title='frame_15.png' onclick='setFrame(15)'><br>frame_15.png</div><div><img src='frame_16.png' title='frame_16.png' onclick='setFrame(16)'><br>frame_16.png</div></div><script>const frames = ['frame_00.png','frame_01.png','frame_02.png','frame_03.png','frame_04.png','frame_05.png','frame_06.png','frame_07.png','frame_08.png','frame_09.png','frame_10.png','frame_11.png','frame_12.png','frame_13.png','frame_14.png','frame_15.png','frame_16.png'];
+        let currentFrame = 0;
+        let interval = null;
+        let speed = 100;
+        
+        function updateAnim() {
+            if (frames.length > 0) {
+                document.getElementById('anim').src = frames[currentFrame];
+                document.getElementById('framenum').innerText = currentFrame;
+                currentFrame = (currentFrame + 1) % frames.length;
+            }
+        }
+        function setFrame(i) {
+            pause();
+            currentFrame = i;
+            document.getElementById('anim').src = frames[currentFrame];
+            document.getElementById('framenum').innerText = currentFrame;
+        }
+        function play() {
+            if (!interval) interval = setInterval(updateAnim, speed);
+        }
+        function pause() {
+            if (interval) { clearInterval(interval); interval = null; }
+        }
+        function updateSpeed() {
+            speed = parseInt(document.getElementById('speed').value);
+            if (interval) { pause(); play(); }
+        }
+        
+        if (frames.length > 0) {
+            document.getElementById('anim').src = frames[0];
+            play();
+        }
+        </script></body></html>
